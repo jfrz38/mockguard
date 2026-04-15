@@ -5,16 +5,16 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
-import org.junit.platform.launcher.core.LauncherFactory
 import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder
+import org.junit.platform.launcher.core.LauncherFactory
 import org.junit.platform.launcher.listeners.SummaryGeneratingListener
 import org.junit.platform.launcher.listeners.TestExecutionSummary
 import org.mockito.Mock
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.verifyNoInteractions
+import org.mockito.Mockito.verifyNoMoreInteractions
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
-import org.junit.jupiter.api.Nested
 
 class MockGuardExtensionIntegrationTest {
 
@@ -57,6 +57,14 @@ class MockGuardExtensionIntegrationTest {
     }
 
     @Test
+    fun verifyNoMoreInteractionsCountsAsVerification() {
+        val summary = runTestClass(NoMoreInteractionsVerificationCase::class.java)
+
+        assertEquals(1, summary.testsSucceededCount)
+        assertEquals(0, summary.testsFailedCount)
+    }
+
+    @Test
     fun programmaticIgnoreAllowsExplicitOptOut() {
         val summary = runTestClass(ProgrammaticIgnoreCase::class.java)
 
@@ -85,7 +93,10 @@ class MockGuardExtensionIntegrationTest {
             }
         }.summary
 
-    private fun captureStandardError(stream: ByteArrayOutputStream, block: () -> TestExecutionSummary): TestExecutionSummary {
+    private fun captureStandardError(
+        stream: ByteArrayOutputStream,
+        block: () -> TestExecutionSummary,
+    ): TestExecutionSummary {
         val original = System.err
         val capturing = PrintStream(stream, true)
 
@@ -97,87 +108,94 @@ class MockGuardExtensionIntegrationTest {
             System.setErr(original)
         }
     }
+}
 
-    @Nested
-    @MockGuard(mode = StrictMode.FAIL)
-    inner class FailModeUnverifiedMockCase {
-        @Mock
-        lateinit var dependency: Dependency
+@MockGuard(mode = StrictMode.FAIL)
+class FailModeUnverifiedMockCase {
+    @Mock
+    lateinit var dependency: Dependency
 
-        @Test
-        fun fails() {
-            dependency.call()
-        }
+    @Test
+    fun fails() {
+        dependency.call()
     }
+}
 
-    @Nested
-    @MockGuard(mode = StrictMode.WARN)
-    inner class WarnModeUnverifiedMockCase {
-        @Mock
-        lateinit var dependency: Dependency
+@MockGuard(mode = StrictMode.WARN)
+class WarnModeUnverifiedMockCase {
+    @Mock
+    lateinit var dependency: Dependency
 
-        @Test
-        fun warns() {
-            dependency.call()
-        }
+    @Test
+    fun warns() {
+        dependency.call()
     }
+}
 
-    @Nested
-    @MockGuard(mode = StrictMode.FAIL)
-    inner class IgnoredMockCase {
-        @Mock
-        @MockGuardIgnore
-        lateinit var logger: Logger
+@MockGuard(mode = StrictMode.FAIL)
+class IgnoredMockCase {
+    @Mock
+    @MockGuardIgnore
+    lateinit var logger: Logger
 
-        @Test
-        fun passes() {
-            logger.info("ignored")
-        }
+    @Test
+    fun passes() {
+        logger.info("ignored")
     }
+}
 
-    @Nested
-    @MockGuard(mode = StrictMode.FAIL)
-    inner class ZeroInteractionVerificationCase {
-        @Mock
-        lateinit var logger: Logger
+@MockGuard(mode = StrictMode.FAIL)
+class ZeroInteractionVerificationCase {
+    @Mock
+    lateinit var logger: Logger
 
-        @Test
-        fun passes() {
-            verifyNoInteractions(logger)
-        }
+    @Test
+    fun passes() {
+        verifyNoInteractions(logger)
     }
+}
 
-    @Nested
-    @MockGuard(mode = StrictMode.FAIL)
-    inner class ProgrammaticIgnoreCase {
-        @Mock
-        lateinit var logger: Logger
+@MockGuard(mode = StrictMode.FAIL)
+class ProgrammaticIgnoreCase {
+    @Mock
+    lateinit var logger: Logger
 
-        @Test
-        fun passes() {
-            MockGuards.ignore(logger)
-            logger.info("ignored programmatically")
-        }
+    @Test
+    fun passes() {
+        MockGuards.ignore(logger)
+        logger.info("ignored programmatically")
     }
+}
 
-    @Nested
-    @MockGuard(mode = StrictMode.FAIL)
-    inner class VerifiedMockCase {
-        @Mock
-        lateinit var dependency: Dependency
+@MockGuard(mode = StrictMode.FAIL)
+class VerifiedMockCase {
+    @Mock
+    lateinit var dependency: Dependency
 
-        @Test
-        fun passes() {
-            dependency.call()
-            verify(dependency).call()
-        }
+    @Test
+    fun passes() {
+        dependency.call()
+        verify(dependency).call()
     }
+}
 
-    interface Dependency {
-        fun call()
-    }
+@MockGuard(mode = StrictMode.FAIL)
+class NoMoreInteractionsVerificationCase {
+    @Mock
+    lateinit var dependency: Dependency
 
-    interface Logger {
-        fun info(message: String)
+    @Test
+    fun passes() {
+        dependency.call()
+        verify(dependency).call()
+        verifyNoMoreInteractions(dependency)
     }
+}
+
+interface Dependency {
+    fun call()
+}
+
+interface Logger {
+    fun info(message: String)
 }

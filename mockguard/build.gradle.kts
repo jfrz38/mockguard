@@ -19,6 +19,8 @@ java {
 dependencies {
     api("org.junit.jupiter:junit-jupiter-api:5.10.2")
     implementation("org.mockito:mockito-core:5.11.0")
+    implementation("net.bytebuddy:byte-buddy:1.14.18")
+    implementation("net.bytebuddy:byte-buddy-agent:1.14.18")
 
     testImplementation("org.junit.jupiter:junit-jupiter-engine:5.10.2")
     testImplementation("org.mockito:mockito-junit-jupiter:5.11.0")
@@ -27,6 +29,10 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+    exclude("**/*$*.class")
+    filter {
+        excludeTestsMatching("com.mockguard.*Case")
+    }
 }
 
 publishing {

@@ -50,6 +50,10 @@ internal object MockTracker {
             ?: error("MockGuard.register(...) can only be used while a MockGuard-managed test is running.")
     }
 
+    fun markVerified(vararg mocks: Any?) {
+        currentSession.get()?.markVerified(*mocks)
+    }
+
     private fun openMocksIfNeeded(testInstance: Any): AutoCloseable? {
         val needsInitialization = allFields(testInstance.javaClass)
             .filter { it.isAnnotationPresent(Mock::class.java) || it.isAnnotationPresent(Spy::class.java) }
@@ -119,6 +123,14 @@ internal object MockTracker {
         fun ignore(mock: Any) {
             register(mock)
             ignoredMocks += mock
+        }
+
+        fun markVerified(vararg mocks: Any?) {
+            mocks.forEach { mock ->
+                if (mock != null && isTrackableMock(mock)) {
+                    verifiedMocks += mock
+                }
+            }
         }
 
         fun verify(mode: StrictMode) {

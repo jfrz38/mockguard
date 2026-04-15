@@ -1,7 +1,10 @@
 package com.mockguard
 
 import com.mockguard.internal.MockTracker
-import org.junit.jupiter.api.extension.*
+import com.mockguard.internal.MockitoVerificationInstrumentation
+import org.junit.jupiter.api.extension.AfterEachCallback
+import org.junit.jupiter.api.extension.BeforeEachCallback
+import org.junit.jupiter.api.extension.ExtensionContext
 
 class MockGuardExtension : BeforeEachCallback, AfterEachCallback {
     private companion object {
@@ -10,6 +13,7 @@ class MockGuardExtension : BeforeEachCallback, AfterEachCallback {
     }
 
     override fun beforeEach(context: ExtensionContext) {
+        MockitoVerificationInstrumentation.ensureInstalled()
         val handle = MockTracker.start(context.requiredTestInstance)
         context.getStore(namespace).put(sessionKey, handle)
     }
