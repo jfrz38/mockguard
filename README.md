@@ -74,7 +74,7 @@ class OrderServiceTest {
 ```xml
 <dependencies>
     <dependency>
-        <groupId>com.mockguard</groupId>
+        <groupId>io.github.jfrz38</groupId>
         <artifactId>mockguard</artifactId>
         <version>1.0-SNAPSHOT</version>
         <scope>test</scope>
@@ -153,7 +153,7 @@ The programmatic API is exposed as `MockGuards` because the annotation already o
 
 ```kotlin
 dependencies {
-    testImplementation("com.mockguard:mockguard:1.0-SNAPSHOT") // Replace with the published version
+    testImplementation("io.github.jfrz38:mockguard:1.0-SNAPSHOT") // Replace with the published version
     testImplementation("org.mockito:mockito-core:5.11.0")
     testImplementation("org.mockito:mockito-junit-jupiter:5.11.0")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.2")
