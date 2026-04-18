@@ -4,6 +4,22 @@ Strict mock verification for JVM unit tests.
 
 `mockguard` is a Kotlin/JVM library for JUnit 5 + Mockito that makes mock verification explicit. When enabled, every tracked mock in a test must be verified with a Mockito verification such as `verify(...)`, `verifyNoInteractions(...)`, or `verifyNoMoreInteractions(...)`, or be opted out explicitly.
 
+## Why Use It?
+
+Mocks are part of the behavior contract of a test, not just test setup.
+
+If a dependency is injected into a unit under test, `mockguard` assumes the test should make that relationship explicit:
+
+- either the dependency is expected to be used, so you verify how it is called
+- or the dependency is expected to stay unused, so you verify that it is not called
+
+What `mockguard` tries to prevent is the ambiguous middle ground where a mock is present but its role is never asserted. In practice, that often hides one of two problems:
+
+- the test is incomplete and forgot to verify an important interaction
+- the production design is carrying dependencies that are not really part of the business logic being exercised
+
+That second case is especially valuable. If a service is injected but the test does not even need to assert that it is not called, that can be a sign of unnecessary coupling or a dependency that should not be part of that code path in the first place.
+
 ## What It Enforces
 
 - A mock with calls but no verification is reported.
