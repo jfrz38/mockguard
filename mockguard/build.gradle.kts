@@ -6,6 +6,9 @@ plugins {
     kotlin("jvm") version "2.0.20"
 }
 
+import org.jreleaser.model.Active
+import org.jreleaser.model.Http
+
 group = "io.github.jfrz38"
 version = "0.1.0"
 
@@ -103,35 +106,36 @@ signing {
 }
 
 jreleaser {
+    gitRootSearch.set(true)
     signing {
-        active = "ALWAYS"
-        armored = true
+        active.set(Active.ALWAYS)
+        armored.set(true)
         pgp {
-            active = "ALWAYS"
-            armored = true
+            active.set(Active.ALWAYS)
+            armored.set(true)
         }
     }
     deploy {
         maven {
             mavenCentral {
                 create("release-deploy") {
-                    active = "RELEASE"
-                    url = "https://central.sonatype.com/api/v1/publisher"
-                    authorization = "BEARER"
-                    snapshotSupported = false
-                    applyMavenCentralRules = true
+                    active.set(Active.RELEASE)
+                    url.set("https://central.sonatype.com/api/v1/publisher")
+                    authorization.set(Http.Authorization.BEARER)
+                    snapshotSupported.set(false)
+                    applyMavenCentralRules.set(true)
                     stagingRepository("build/staging-deploy")
                 }
             }
             nexus2 {
                 create("snapshot-deploy") {
-                    active = "SNAPSHOT"
-                    snapshotUrl = "https://central.sonatype.com/repository/maven-snapshots/"
-                    authorization = "BEARER"
-                    snapshotSupported = true
-                    closeRepository = true
-                    releaseRepository = true
-                    applyMavenCentralRules = true
+                    active.set(Active.SNAPSHOT)
+                    snapshotUrl.set("https://central.sonatype.com/repository/maven-snapshots/")
+                    authorization.set(Http.Authorization.BEARER)
+                    snapshotSupported.set(true)
+                    closeRepository.set(true)
+                    releaseRepository.set(true)
+                    applyMavenCentralRules.set(true)
                     stagingRepository("build/staging-deploy")
                 }
             }
