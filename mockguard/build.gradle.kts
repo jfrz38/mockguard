@@ -31,7 +31,7 @@ tasks.test {
     useJUnitPlatform()
     exclude("**/*$*.class")
     filter {
-        excludeTestsMatching("com.mockguard.*Case")
+        excludeTestsMatching("com.mockguard.integration.fixtures.*")
     }
 }
 
