@@ -1,6 +1,7 @@
 plugins {
     `java-library`
     `maven-publish`
+    signing
     kotlin("jvm") version "2.0.20"
 }
 
@@ -13,7 +14,6 @@ repositories {
 
 java {
     withSourcesJar()
-    withJavadocJar()
 }
 
 dependencies {
@@ -27,6 +27,13 @@ dependencies {
     testImplementation("org.junit.platform:junit-platform-launcher:1.10.2")
 }
 
+val emptyJavadocJar by tasks.registering(Jar::class) {
+    archiveClassifier.set("javadoc")
+    from(rootProject.file("README.md")) {
+        rename { "README.md" }
+    }
+}
+
 tasks.test {
     useJUnitPlatform()
     exclude("**/*$*.class")
@@ -35,10 +42,17 @@ tasks.test {
     }
 }
 
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
+}
+
 publishing {
     publications {
         create<MavenPublication>("mavenJava") {
             from(components["java"])
+            artifact(emptyJavadocJar)
 
             pom {
                 name.set("mockguard")
@@ -68,6 +82,16 @@ publishing {
                 }
             }
         }
+    }
+}
+
+signing {
+    val signingKey: String? = findProperty("signingKey") as String?
+    val signingPassword: String? = findProperty("signingPassword") as String?
+
+    if (!signingKey.isNullOrBlank() && !signingPassword.isNullOrBlank()) {
+        useInMemoryPgpKeys(signingKey, signingPassword)
+        sign(publishing.publications)
     }
 }
 
