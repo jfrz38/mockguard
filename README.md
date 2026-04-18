@@ -2,9 +2,9 @@
 
 Strict mock verification for JVM unit tests.
 
-`mockguard` is a Kotlin/JVM library for JUnit 5 + Mockito that makes mock verification explicit. When enabled, every tracked mock in a test must be verified with a Mockito verification such as `verify(...)` or `verifyNoInteractions(...)`, or be opted out explicitly.
+`mockguard` is a Kotlin/JVM library for JUnit 5 + Mockito that makes mock verification explicit. When enabled, every tracked mock in a test must be verified with a Mockito verification such as `verify(...)`, `verifyNoInteractions(...)`, or `verifyNoMoreInteractions(...)`, or be opted out explicitly.
 
-## What it enforces
+## What It Enforces
 
 - A mock with calls but no verification is reported.
 - A mock with no calls and no `verifyNoInteractions(...)` is also reported.
@@ -12,7 +12,20 @@ Strict mock verification for JVM unit tests.
 - `StrictMode.WARN` logs warnings.
 - `StrictMode.FAIL` fails the test.
 
-## Usage
+## Supported Verification Styles
+
+`mockguard` accepts standard Mockito verifications, including:
+
+- `verify(mock)`
+- `verify(mock, times(...))`
+- `verify(mock, never())`
+- `verify(mock, atLeastOnce())`
+- `verifyNoInteractions(mock)`
+- `verifyNoMoreInteractions(mock)`
+
+`verifyNoInteractions(...)` and `verifyNoMoreInteractions(...)` are supported transparently through runtime interception of Mockito, so test code does not need wrappers or custom APIs.
+
+## Kotlin Example
 
 ```kotlin
 import com.mockguard.MockGuard
@@ -20,6 +33,7 @@ import com.mockguard.StrictMode
 import org.junit.jupiter.api.Test
 import org.mockito.Mock
 import org.mockito.Mockito.verify
+import org.mockito.Mockito.verifyNoInteractions
 
 @MockGuard(mode = StrictMode.FAIL)
 class OrderServiceTest {
@@ -32,14 +46,76 @@ class OrderServiceTest {
         paymentGateway.charge(100)
 
         verify(paymentGateway).charge(100)
-        // logger would need verifyNoInteractions(logger) or @MockGuardIgnore
+        verifyNoInteractions(logger)
     }
 }
 ```
 
 `@MockGuard` activates the JUnit 5 extension automatically and initializes `@Mock` / `@Spy` fields if Mockito has not already done so.
 
-## Ignoring a mock
+## Java Example With Maven
+
+```xml
+<dependencies>
+    <dependency>
+        <groupId>com.mockguard</groupId>
+        <artifactId>mockguard</artifactId>
+        <version>1.0-SNAPSHOT</version>
+        <scope>test</scope>
+    </dependency>
+
+    <dependency>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-core</artifactId>
+        <version>5.11.0</version>
+        <scope>test</scope>
+    </dependency>
+
+    <dependency>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-junit-jupiter</artifactId>
+        <version>5.11.0</version>
+        <scope>test</scope>
+    </dependency>
+
+    <dependency>
+        <groupId>org.junit.jupiter</groupId>
+        <artifactId>junit-jupiter-engine</artifactId>
+        <version>5.10.2</version>
+        <scope>test</scope>
+    </dependency>
+</dependencies>
+```
+
+```java
+import com.mockguard.MockGuard;
+import com.mockguard.StrictMode;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
+
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+
+@MockGuard(mode = StrictMode.FAIL)
+class OrderServiceTest {
+
+    @Mock
+    PaymentGateway paymentGateway;
+
+    @Mock
+    Logger logger;
+
+    @Test
+    void processesOrders() {
+        paymentGateway.charge(100);
+
+        verify(paymentGateway).charge(100);
+        verifyNoInteractions(logger);
+    }
+}
+```
+
+## Ignoring A Mock
 
 Annotation-based:
 
@@ -61,7 +137,15 @@ The programmatic API is exposed as `MockGuards` because the annotation already o
 
 ```kotlin
 dependencies {
-    testImplementation("com.mockguard:mockguard:1.0-SNAPSHOT")
+    testImplementation("com.mockguard:mockguard:1.0-SNAPSHOT") // Replace with the published version
+    testImplementation("org.mockito:mockito-core:5.11.0")
     testImplementation("org.mockito:mockito-junit-jupiter:5.11.0")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.2")
 }
 ```
+
+## Requirements
+
+- JUnit 5
+- Mockito 5
+- Java 17+

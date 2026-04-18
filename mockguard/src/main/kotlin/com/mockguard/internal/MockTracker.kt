@@ -138,19 +138,23 @@ internal object MockTracker {
                 return
             }
 
-            val invalidMocks = trackedMocks.entries
-                .filter { (mock, _) -> mock !in ignoredMocks && !isVerified(mock) }
-                .map { (mock, label) -> buildViolation(mock, label) }
+            val invalidMocks = MockGuardValidation.findViolations(
+                trackedMocks.entries.map { (mock, label) ->
+                    MockValidationState(
+                        label = label,
+                        mockType = describeMock(mock),
+                        invocationCount = Mockito.mockingDetails(mock).invocations.size,
+                        ignored = mock in ignoredMocks,
+                        verified = isVerified(mock),
+                    )
+                },
+            )
 
             if (invalidMocks.isEmpty()) {
                 return
             }
 
-            val message = buildString {
-                appendLine("[MockGuard] Found ${invalidMocks.size} unverified mock(s).")
-                invalidMocks.forEach { appendLine("- $it") }
-                append("Verify each mock explicitly or opt out with @MockGuardIgnore / MockGuards.ignore(mock).")
-            }
+            val message = MockGuardValidation.buildSummary(invalidMocks)
 
             when (mode) {
                 StrictMode.WARN -> System.err.println(message)
@@ -193,17 +197,6 @@ internal object MockTracker {
         private fun isVerified(mock: Any): Boolean {
             val invocations = Mockito.mockingDetails(mock).invocations
             return mock in verifiedMocks || invocations.any { it.isVerified }
-        }
-
-        private fun buildViolation(mock: Any, label: String): String {
-            val invocations = Mockito.mockingDetails(mock).invocations
-            val mockType = describeMock(mock)
-
-            return if (invocations.isEmpty()) {
-                "$label ($mockType) was never verified. Use verifyNoInteractions($label) if the mock is intentionally unused."
-            } else {
-                "$label ($mockType) had ${invocations.size} invocation(s) but was never verified."
-            }
         }
 
         private fun describeMock(mock: Any): String = try {
