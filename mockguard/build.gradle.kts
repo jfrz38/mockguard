@@ -2,11 +2,12 @@ plugins {
     `java-library`
     `maven-publish`
     signing
+    id("org.jreleaser") version "1.23.0"
     kotlin("jvm") version "2.0.20"
 }
 
 group = "io.github.jfrz38"
-version = "1.0-SNAPSHOT"
+version = "0.1.0"
 
 repositories {
     mavenCentral()
@@ -83,6 +84,12 @@ publishing {
             }
         }
     }
+    repositories {
+        maven {
+            name = "staging"
+            url = layout.buildDirectory.dir("staging-deploy").get().asFile.toURI()
+        }
+    }
 }
 
 signing {
@@ -92,6 +99,43 @@ signing {
     if (!signingKey.isNullOrBlank() && !signingPassword.isNullOrBlank()) {
         useInMemoryPgpKeys(signingKey, signingPassword)
         sign(publishing.publications)
+    }
+}
+
+jreleaser {
+    signing {
+        active = "ALWAYS"
+        armored = true
+        pgp {
+            active = "ALWAYS"
+            armored = true
+        }
+    }
+    deploy {
+        maven {
+            mavenCentral {
+                create("release-deploy") {
+                    active = "RELEASE"
+                    url = "https://central.sonatype.com/api/v1/publisher"
+                    authorization = "BEARER"
+                    snapshotSupported = false
+                    applyMavenCentralRules = true
+                    stagingRepository("build/staging-deploy")
+                }
+            }
+            nexus2 {
+                create("snapshot-deploy") {
+                    active = "SNAPSHOT"
+                    snapshotUrl = "https://central.sonatype.com/repository/maven-snapshots/"
+                    authorization = "BEARER"
+                    snapshotSupported = true
+                    closeRepository = true
+                    releaseRepository = true
+                    applyMavenCentralRules = true
+                    stagingRepository("build/staging-deploy")
+                }
+            }
+        }
     }
 }
 
