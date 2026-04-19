@@ -27,6 +27,7 @@ dependencies {
     implementation("net.bytebuddy:byte-buddy-agent:1.14.18")
 
     testImplementation("org.junit.jupiter:junit-jupiter-engine:5.10.2")
+    testImplementation("org.junit.jupiter:junit-jupiter-params:5.10.2")
     testImplementation("org.mockito:mockito-junit-jupiter:5.11.0")
     testImplementation("org.junit.platform:junit-platform-launcher:1.10.2")
 }
