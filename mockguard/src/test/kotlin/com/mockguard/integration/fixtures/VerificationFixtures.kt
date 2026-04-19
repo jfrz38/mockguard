@@ -2,6 +2,7 @@ package com.mockguard.integration.fixtures
 
 import com.mockguard.MockGuard
 import com.mockguard.StrictMode
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.mockito.Mock
 import org.mockito.Mockito.verify
@@ -41,5 +42,37 @@ class NoMoreInteractionsVerificationCase {
         dependency.call()
         verify(dependency).call()
         verifyNoMoreInteractions(dependency)
+    }
+}
+
+@MockGuard(mode = StrictMode.FAIL)
+class VerifiedInAfterEachCase {
+    @Mock
+    lateinit var dependency: Dependency
+
+    @Test
+    fun passes() {
+        dependency.call()
+    }
+
+    @AfterEach
+    fun verifyAfterEach() {
+        verify(dependency).call()
+    }
+}
+
+@MockGuard(mode = StrictMode.FAIL)
+class NoInteractionsVerifiedInAfterEachCase {
+    @Mock
+    lateinit var logger: Logger
+
+    @Test
+    fun passes() {
+        // Intentionally left unused and verified in @AfterEach.
+    }
+
+    @AfterEach
+    fun verifyAfterEach() {
+        verifyNoInteractions(logger)
     }
 }

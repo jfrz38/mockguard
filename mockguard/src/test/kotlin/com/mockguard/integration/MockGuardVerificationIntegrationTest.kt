@@ -1,7 +1,9 @@
 package com.mockguard.integration
 
 import com.mockguard.integration.fixtures.NoMoreInteractionsVerificationCase
+import com.mockguard.integration.fixtures.NoInteractionsVerifiedInAfterEachCase
 import com.mockguard.integration.fixtures.VerifiedMockCase
+import com.mockguard.integration.fixtures.VerifiedInAfterEachCase
 import com.mockguard.integration.fixtures.ZeroInteractionVerificationCase
 import com.mockguard.integration.support.MockGuardIntegrationTestSupport.runTestClass
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -33,5 +35,21 @@ class MockGuardVerificationIntegrationTest {
         assertEquals(1, summary.testsSucceededCount)
         assertEquals(0, summary.testsFailedCount)
         assertFalse(summary.failures.isNotEmpty())
+    }
+
+    @Test
+    fun verifyInAfterEachCountsAsVerification() {
+        val summary = runTestClass(VerifiedInAfterEachCase::class.java)
+
+        assertEquals(1, summary.testsSucceededCount)
+        assertEquals(0, summary.testsFailedCount)
+    }
+
+    @Test
+    fun verifyNoInteractionsInAfterEachCountsAsVerification() {
+        val summary = runTestClass(NoInteractionsVerifiedInAfterEachCase::class.java)
+
+        assertEquals(1, summary.testsSucceededCount)
+        assertEquals(0, summary.testsFailedCount)
     }
 }
