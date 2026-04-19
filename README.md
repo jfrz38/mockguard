@@ -44,6 +44,7 @@ That second case is especially valuable. If a service is injected but the test d
 ## Kotlin Example
 
 ```kotlin
+import com.mockguard.GuardedMock
 import com.mockguard.MockGuard
 import com.mockguard.StrictMode
 import org.junit.jupiter.api.Test
@@ -76,7 +77,7 @@ class OrderServiceTest {
     <dependency>
         <groupId>io.github.jfrz38</groupId>
         <artifactId>mockguard</artifactId>
-        <version>1.0-SNAPSHOT</version>
+        <version>0.1.0</version> <!-- Replace with the published version -->
         <scope>test</scope>
     </dependency>
 
@@ -149,11 +150,48 @@ MockGuards.ignore(logger)
 
 The programmatic API is exposed as `MockGuards` because the annotation already owns the `MockGuard` name in Kotlin.
 
+## Focusing On One Critical Mock
+
+You may not want to enforce strict verification for every dependency in every test class right away. That is a valid way to adopt `mockguard` gradually.
+
+A good option is to use `mockguard` when one dependency is especially important for the business flow.
+
+If you want to focus on a single critical mock, you can:
+
+- Enable `@MockGuard` for the test class
+- Mark the critical dependency with `@GuardedMock`
+
+If at least one field is annotated with `@GuardedMock`, `mockguard` validates only those guarded mocks and ignores the rest.
+
+Example:
+
+```kotlin
+@MockGuard(mode = StrictMode.FAIL)
+class CheckoutServiceTest {
+
+    @GuardedMock
+    @Mock
+    lateinit var paymentGateway: PaymentGateway
+
+    @Mock
+    lateinit var auditLogger: AuditLogger
+
+    @Test
+    fun chargesTheCustomer() {
+        checkoutService.charge(100)
+
+        verify(paymentGateway).charge(100)
+    }
+}
+```
+
+This gives you a focused adoption path: you can start by protecting the mocks that are truly critical to the business, and widen the rule later as the test suite becomes more explicit.
+
 ## Gradle
 
 ```kotlin
 dependencies {
-    testImplementation("io.github.jfrz38:mockguard:1.0-SNAPSHOT") // Replace with the published version
+    testImplementation("io.github.jfrz38:mockguard:0.1.0") // Replace with the published version
     testImplementation("org.mockito:mockito-core:5.11.0")
     testImplementation("org.mockito:mockito-junit-jupiter:5.11.0")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.2")
