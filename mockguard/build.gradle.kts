@@ -123,8 +123,11 @@ jreleaser {
                     active.set(Active.RELEASE)
                     url.set("https://central.sonatype.com/api/v1/publisher")
                     authorization.set(Http.Authorization.BEARER)
+                    namespace.set(project.group.toString())
                     snapshotSupported.set(false)
                     applyMavenCentralRules.set(true)
+                    retryDelay.set(30)
+                    maxRetries.set(120)
                     stagingRepository("build/staging-deploy")
                 }
             }

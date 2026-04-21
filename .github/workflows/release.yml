@@ -12,6 +12,10 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: ./mockguard
 
     env:
       JRELEASER_GPG_PUBLIC_KEY: ${{ secrets.JRELEASER_GPG_PUBLIC_KEY }}
@@ -33,17 +37,17 @@ jobs:
           java-version: "17"
           cache: gradle
 
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
       - name: Make Gradle wrapper executable
-        run: chmod +x ./mockguard/gradlew
+        run: chmod +x gradlew
 
       - name: Run tests
-        working-directory: ./mockguard
-        run: ./gradlew test
+        run: ./gradlew --stacktrace test
 
       - name: Validate JReleaser configuration
-        working-directory: ./mockguard
-        run: ./gradlew jreleaserConfig --deploy --dryrun
+        run: ./gradlew --stacktrace jreleaserConfig --deploy --dryrun
 
       - name: Publish to Maven Central
-        working-directory: ./mockguard
-        run: ./gradlew publish jreleaserDeploy
+        run: ./gradlew --stacktrace --info publish jreleaserDeploy
