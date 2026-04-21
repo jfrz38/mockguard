@@ -44,7 +44,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Run tests
-        run: ./gradlew --stacktrace test
+        run: ./gradlew test
 
       - name: Validate JReleaser configuration
         run: ./gradlew --stacktrace jreleaserConfig --deploy --dryrun
