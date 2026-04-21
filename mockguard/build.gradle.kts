@@ -12,6 +12,8 @@ import org.jreleaser.model.Http
 group = "io.github.jfrz38"
 version = "0.1.0"
 
+val publicationNamespace = group.toString()
+
 repositories {
     mavenCentral()
 }
@@ -123,7 +125,7 @@ jreleaser {
                     active.set(Active.RELEASE)
                     url.set("https://central.sonatype.com/api/v1/publisher")
                     authorization.set(Http.Authorization.BEARER)
-                    namespace.set(project.group.toString())
+                    namespace.set(publicationNamespace)
                     snapshotSupported.set(false)
                     applyMavenCentralRules.set(true)
                     retryDelay.set(30)
