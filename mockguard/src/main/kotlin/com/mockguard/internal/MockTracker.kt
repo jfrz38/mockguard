@@ -1,5 +1,6 @@
 package com.mockguard.internal
 
+import com.mockguard.GuardedMock
 import com.mockguard.StrictMode
 import org.mockito.Mock
 import org.mockito.Mockito
@@ -169,13 +170,17 @@ internal object MockTracker {
         }
 
         private fun discoverMocks() {
-            allFields(testInstance.javaClass)
-                .asSequence()
+            val fields = allFields(testInstance.javaClass)
                 .filterNot { Modifier.isStatic(it.modifiers) }
                 .onEach { it.isAccessible = true }
+
+            val hasGuardedMocks = fields.any { it.isAnnotationPresent(GuardedMock::class.java) }
+
+            fields
+                .asSequence()
                 .forEach { field ->
                     val value = field.get(testInstance) ?: return@forEach
-                    if (!shouldTrack(field, value)) {
+                    if (!shouldTrack(field, value, hasGuardedMocks)) {
                         return@forEach
                     }
 
@@ -186,7 +191,11 @@ internal object MockTracker {
                 }
         }
 
-        private fun shouldTrack(field: Field, value: Any): Boolean {
+        private fun shouldTrack(field: Field, value: Any, hasGuardedMocks: Boolean): Boolean {
+            if (hasGuardedMocks && !field.isAnnotationPresent(GuardedMock::class.java)) {
+                return false
+            }
+
             if (field.isAnnotationPresent(Mock::class.java) || field.isAnnotationPresent(Spy::class.java)) {
                 return true
             }
