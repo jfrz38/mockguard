@@ -10,7 +10,7 @@ import org.jreleaser.model.Active
 import org.jreleaser.model.Http
 
 group = "io.github.jfrz38"
-version = "0.1.0"
+version = "0.1.1"
 
 val publicationNamespace = group.toString()
 
