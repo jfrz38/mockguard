@@ -128,8 +128,8 @@ jreleaser {
                     namespace.set(publicationNamespace)
                     snapshotSupported.set(false)
                     applyMavenCentralRules.set(true)
-                    retryDelay.set(30)
-                    maxRetries.set(120)
+                    retryDelay.set(10)
+                    maxRetries.set(6)
                     stagingRepository("build/staging-deploy")
                 }
             }
