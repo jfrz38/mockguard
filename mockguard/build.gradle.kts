@@ -3,7 +3,7 @@ plugins {
     `maven-publish`
     signing
     id("org.jreleaser") version "1.23.0"
-    kotlin("jvm") version "2.0.20"
+    kotlin("jvm") version "2.3.20"
 }
 
 import org.jreleaser.model.Active
@@ -23,15 +23,15 @@ java {
 }
 
 dependencies {
-    api("org.junit.jupiter:junit-jupiter-api:5.10.2")
-    implementation("org.mockito:mockito-core:5.11.0")
-    implementation("net.bytebuddy:byte-buddy:1.14.18")
-    implementation("net.bytebuddy:byte-buddy-agent:1.14.18")
+    api("org.junit.jupiter:junit-jupiter-api:6.0.3")
+    implementation("org.mockito:mockito-core:5.23.0")
+    implementation("net.bytebuddy:byte-buddy:1.18.8")
+    implementation("net.bytebuddy:byte-buddy-agent:1.18.8")
 
-    testImplementation("org.junit.jupiter:junit-jupiter-engine:5.10.2")
-    testImplementation("org.junit.jupiter:junit-jupiter-params:5.10.2")
-    testImplementation("org.mockito:mockito-junit-jupiter:5.11.0")
-    testImplementation("org.junit.platform:junit-platform-launcher:1.10.2")
+    testImplementation("org.junit.jupiter:junit-jupiter-engine:6.0.3")
+    testImplementation("org.junit.jupiter:junit-jupiter-params:6.0.3")
+    testImplementation("org.mockito:mockito-junit-jupiter:5.23.0")
+    testImplementation("org.junit.platform:junit-platform-launcher:6.0.3")
 }
 
 val emptyJavadocJar by tasks.registering(Jar::class) {
