@@ -17,3 +17,7 @@ updates:
       interval: "monthly"
     commit-message:
       prefix: "[CI Update]"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
