@@ -69,5 +69,5 @@ jobs:
 
           gh release create "$TAG" \
             --repo "$GITHUB_REPOSITORY" \
-            --title "mockguard $VERSION" \
+            --title "$TAG" \
             --generate-notes
