@@ -11,6 +11,14 @@ on:
           - patch
           - minor
           - major
+      base_branch:
+        description: Branch to bump and target with the pull request
+        required: true
+        type: choice
+        default: develop
+        options:
+          - develop
+          - main
 
 permissions:
   contents: write
@@ -25,6 +33,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
         with:
+          ref: ${{ inputs.base_branch }}
           fetch-depth: 0
 
       - name: Calculate next version
@@ -94,6 +103,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ steps.version.outputs.branch }}
+          BASE_BRANCH: ${{ inputs.base_branch }}
           CURRENT_VERSION: ${{ steps.version.outputs.current }}
           NEXT_VERSION: ${{ steps.version.outputs.next }}
           BUMP: ${{ inputs.bump }}
@@ -112,7 +122,7 @@ jobs:
 
           EXISTING_PR="$(gh pr list \
             --repo "$GITHUB_REPOSITORY" \
-            --base main \
+            --base "$BASE_BRANCH" \
             --head "$BRANCH" \
             --state open \
             --json url \
@@ -125,7 +135,7 @@ jobs:
 
           gh pr create \
             --repo "$GITHUB_REPOSITORY" \
-            --base main \
+            --base "$BASE_BRANCH" \
             --head "$BRANCH" \
             --title "Bump version to $NEXT_VERSION" \
             --body "Bumps mockguard from $CURRENT_VERSION to $NEXT_VERSION using a $BUMP release bump." \
