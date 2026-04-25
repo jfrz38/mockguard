@@ -99,12 +99,29 @@ jobs:
           BUMP: ${{ inputs.bump }}
         shell: bash
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git switch -c "$BRANCH"
-          git add mockguard/build.gradle.kts
-          git commit -m "Bump version to $NEXT_VERSION"
-          git push --set-upstream origin "$BRANCH"
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            echo "Branch $BRANCH already exists; creating the PR from the existing branch."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git switch -c "$BRANCH"
+            git add mockguard/build.gradle.kts
+            git commit -m "Bump version to $NEXT_VERSION"
+            git push --set-upstream origin "$BRANCH"
+          fi
+
+          EXISTING_PR="$(gh pr list \
+            --repo "$GITHUB_REPOSITORY" \
+            --base main \
+            --head "$BRANCH" \
+            --state open \
+            --json url \
+            --jq '.[0].url')"
+
+          if [ -n "$EXISTING_PR" ]; then
+            echo "Pull request already exists: $EXISTING_PR"
+            exit 0
+          fi
 
           gh pr create \
             --repo "$GITHUB_REPOSITORY" \
