@@ -6,6 +6,9 @@ on:
       - main
       - develop
 
+permissions:
+  contents: read
+
 jobs:
   build-and-test:
     name: build-and-test
