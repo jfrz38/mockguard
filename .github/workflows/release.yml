@@ -1,27 +1,20 @@
-name: Release
+name: Create Release
 
 on:
   push:
     branches:
       - main
-  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  publish:
+  create-release:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: ./mockguard
-
-    env:
-      JRELEASER_GPG_PUBLIC_KEY: ${{ secrets.JRELEASER_GPG_PUBLIC_KEY }}
-      JRELEASER_GPG_SECRET_KEY: ${{ secrets.JRELEASER_GPG_SECRET_KEY }}
-      JRELEASER_GPG_PASSPHRASE: ${{ secrets.JRELEASER_GPG_PASSPHRASE }}
-      JRELEASER_MAVENCENTRAL_TOKEN: ${{ secrets.JRELEASER_MAVENCENTRAL_TOKEN }}
 
     steps:
       - name: Check out repository
@@ -45,8 +38,36 @@ jobs:
       - name: Run tests
         run: ./gradlew test
 
-      - name: Validate JReleaser configuration
-        run: ./gradlew --stacktrace jreleaserConfig --deploy --dryrun
+      - name: Resolve release version
+        id: version
+        run: |
+          VERSION="$(./gradlew -q properties | awk -F': ' '$1 == "version" {print $2; exit}')"
+          if [ -z "$VERSION" ]; then
+            echo "Could not resolve project version" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Publish to Maven Central
-        run: ./gradlew --stacktrace --info publish jreleaserDeploy
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; nothing to create."
+            exit 0
+          fi
+
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists but the GitHub release is missing; creating it."
+          else
+            git tag "$TAG"
+            git push origin "$TAG"
+          fi
+
+          gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "mockguard $VERSION" \
+            --generate-notes
