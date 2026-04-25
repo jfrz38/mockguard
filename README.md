@@ -1,5 +1,9 @@
 # Mock Guard
 
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.jfrz38/mockguard)](https://central.sonatype.com/artifact/io.github.jfrz38/mockguard)
+[![Build](https://img.shields.io/github/actions/workflow/status/jfrz38/mockguard/pr-build.yml?branch=main)](https://github.com/jfrz38/mockguard/actions/workflows/pr-build.yml)
+[![License](https://img.shields.io/github/license/jfrz38/mockguard)](https://github.com/jfrz38/mockguard/blob/main/LICENSE)
+
 Strict mock verification for JVM unit tests.
 
 `mockguard` is a Kotlin/JVM library for JUnit 5 + Mockito that makes mock verification explicit. When enabled, every tracked mock in a test must be verified with a Mockito verification such as `verify(...)`, `verifyNoInteractions(...)`, or `verifyNoMoreInteractions(...)`, or be opted out explicitly.

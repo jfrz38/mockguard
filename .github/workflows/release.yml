@@ -1,49 +1,73 @@
-name: Release
+name: Create Release
 
 on:
   push:
     branches:
       - main
-  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  publish:
+  create-release:
     runs-on: ubuntu-latest
-
-    env:
-      JRELEASER_GPG_PUBLIC_KEY: ${{ secrets.JRELEASER_GPG_PUBLIC_KEY }}
-      JRELEASER_GPG_SECRET_KEY: ${{ secrets.JRELEASER_GPG_SECRET_KEY }}
-      JRELEASER_GPG_PASSPHRASE: ${{ secrets.JRELEASER_GPG_PASSPHRASE }}
-      JRELEASER_MAVENCENTRAL_USERNAME: ${{ secrets.JRELEASER_MAVENCENTRAL_USERNAME }}
-      JRELEASER_MAVENCENTRAL_PASSWORD: ${{ secrets.JRELEASER_MAVENCENTRAL_PASSWORD }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: ./mockguard
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
           cache: gradle
 
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
       - name: Make Gradle wrapper executable
-        run: chmod +x ./mockguard/gradlew
+        run: chmod +x gradlew
 
       - name: Run tests
-        working-directory: ./mockguard
         run: ./gradlew test
 
-      - name: Validate JReleaser configuration
-        working-directory: ./mockguard
-        run: ./gradlew jreleaserConfig --deploy --dryrun
+      - name: Resolve release version
+        id: version
+        run: |
+          VERSION="$(./gradlew -q properties | awk -F': ' '$1 == "version" {print $2; exit}')"
+          if [ -z "$VERSION" ]; then
+            echo "Could not resolve project version" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Publish to Maven Central
-        working-directory: ./mockguard
-        run: ./gradlew publish jreleaserDeploy
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; nothing to create."
+            exit 0
+          fi
+
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists but the GitHub release is missing; creating it."
+          else
+            git tag "$TAG"
+            git push origin "$TAG"
+          fi
+
+          gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "mockguard $VERSION" \
+            --generate-notes
