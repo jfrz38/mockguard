@@ -128,4 +128,5 @@ jobs:
             --base main \
             --head "$BRANCH" \
             --title "Bump version to $NEXT_VERSION" \
-            --body "Bumps mockguard from $CURRENT_VERSION to $NEXT_VERSION using a $BUMP release bump."
+            --body "Bumps mockguard from $CURRENT_VERSION to $NEXT_VERSION using a $BUMP release bump." \
+            --draft
