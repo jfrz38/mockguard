@@ -2,11 +2,6 @@ name: Publish Release
 
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: Version from an existing GitHub release, for example 0.1.1
-        required: true
-        type: string
 
 permissions:
   contents: read
@@ -34,18 +29,20 @@ jobs:
             exit 1
           fi
 
-      - name: Normalize version
+      - name: Resolve latest release
         id: version
         working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          VERSION="${{ inputs.version }}"
-          VERSION="${VERSION#v}"
-          if [ -z "$VERSION" ]; then
-            echo "Version input is required" >&2
+          TAG="$(gh release list --repo "$GITHUB_REPOSITORY" --limit 1 --json tagName --jq '.[0].tagName')"
+          if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
+            echo "No GitHub releases found." >&2
             exit 1
           fi
+          VERSION="${TAG#v}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Verify GitHub release exists
         working-directory: .
@@ -59,6 +56,28 @@ jobs:
         with:
           ref: ${{ steps.version.outputs.tag }}
           fetch-depth: 0
+
+      - id: version-check
+        name: Check version is not already published
+        uses: jfrz38/check-version-change@v1
+        with:
+          file-path: mockguard/build.gradle.kts
+          package-name: io.github.jfrz38:mockguard
+          registry: maven-central
+          compare-source: registry
+
+      - name: Verify version can be published
+        working-directory: .
+        run: |
+          if [ "${{ steps.version-check.outputs.changed }}" != "true" ]; then
+            echo "Version ${{ steps.version-check.outputs.local-version }} is already published to Maven Central" >&2
+            exit 1
+          fi
+
+          if [ -n "${{ steps.version-check.outputs.compared-version }}" ] && [ "${{ steps.version-check.outputs.is-higher }}" != "true" ]; then
+            echo "Version ${{ steps.version-check.outputs.local-version }} is not higher than published version ${{ steps.version-check.outputs.compared-version }}" >&2
+            exit 1
+          fi
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
