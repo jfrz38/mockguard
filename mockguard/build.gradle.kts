@@ -41,13 +41,6 @@ val emptyJavadocJar by tasks.registering(Jar::class) {
     }
 }
 
-val emptyJavadocJar by tasks.registering(Jar::class) {
-    archiveClassifier.set("javadoc")
-    from(rootProject.file("README.md")) {
-        rename { "README.md" }
-    }
-}
-
 tasks.test {
     useJUnitPlatform()
     exclude("**/*$*.class")
