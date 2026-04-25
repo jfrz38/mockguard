@@ -26,6 +26,14 @@ jobs:
       JRELEASER_MAVENCENTRAL_TOKEN: ${{ secrets.JRELEASER_MAVENCENTRAL_TOKEN }}
 
     steps:
+      - name: Verify workflow runs from main
+        working-directory: .
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "Publish must be run from main. Current ref is $GITHUB_REF" >&2
+            exit 1
+          fi
+
       - name: Normalize version
         id: version
         working-directory: .
