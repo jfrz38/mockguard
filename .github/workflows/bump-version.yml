@@ -69,7 +69,7 @@ jobs:
           NEXT_VERSION="$MAJOR.$MINOR.$PATCH"
           echo "current=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
           echo "next=$NEXT_VERSION" >> "$GITHUB_OUTPUT"
-          echo "branch=release/bump-$NEXT_VERSION" >> "$GITHUB_OUTPUT"
+          echo "branch=chore/bump-version-$NEXT_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Check target version is new
         env:
