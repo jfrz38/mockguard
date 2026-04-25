@@ -2,11 +2,6 @@ name: Publish Release
 
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: Version from an existing GitHub release, for example 0.1.1
-        required: true
-        type: string
 
 permissions:
   contents: read
@@ -34,18 +29,20 @@ jobs:
             exit 1
           fi
 
-      - name: Normalize version
+      - name: Resolve latest release
         id: version
         working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          VERSION="${{ inputs.version }}"
-          VERSION="${VERSION#v}"
-          if [ -z "$VERSION" ]; then
-            echo "Version input is required" >&2
+          TAG="$(gh release list --repo "$GITHUB_REPOSITORY" --limit 1 --json tagName --jq '.[0].tagName')"
+          if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
+            echo "No GitHub releases found." >&2
             exit 1
           fi
+          VERSION="${TAG#v}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Verify GitHub release exists
         working-directory: .
