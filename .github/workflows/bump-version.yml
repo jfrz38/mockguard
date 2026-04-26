@@ -6,6 +6,7 @@ on:
       bump:
         description: Version component to bump
         required: true
+        default: patch
         type: choice
         options:
           - patch
@@ -14,11 +15,8 @@ on:
       base_branch:
         description: Branch to bump and target with the pull request
         required: true
-        type: choice
         default: develop
-        options:
-          - develop
-          - main
+        type: string
 
 permissions:
   contents: write
@@ -31,112 +29,18 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           ref: ${{ inputs.base_branch }}
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Calculate next version
-        id: version
-        shell: bash
-        run: |
-          CURRENT_VERSION="$(sed -nE 's/^version = "([0-9]+\.[0-9]+\.[0-9]+)"$/\1/p' mockguard/build.gradle.kts)"
-          if [ -z "$CURRENT_VERSION" ]; then
-            echo "Could not resolve current version from mockguard/build.gradle.kts" >&2
-            exit 1
-          fi
-
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
-          case "${{ inputs.bump }}" in
-            patch)
-              PATCH=$((PATCH + 1))
-              ;;
-            minor)
-              MINOR=$((MINOR + 1))
-              PATCH=0
-              ;;
-            major)
-              MAJOR=$((MAJOR + 1))
-              MINOR=0
-              PATCH=0
-              ;;
-            *)
-              echo "Unsupported bump: ${{ inputs.bump }}" >&2
-              exit 1
-              ;;
-          esac
-
-          NEXT_VERSION="$MAJOR.$MINOR.$PATCH"
-          echo "current=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
-          echo "next=$NEXT_VERSION" >> "$GITHUB_OUTPUT"
-          echo "branch=chore/bump-version-$NEXT_VERSION" >> "$GITHUB_OUTPUT"
-
-      - name: Check target version is new
-        env:
-          GH_TOKEN: ${{ github.token }}
-          NEXT_VERSION: ${{ steps.version.outputs.next }}
-        shell: bash
-        run: |
-          if git rev-parse "v$NEXT_VERSION" >/dev/null 2>&1; then
-            echo "Tag v$NEXT_VERSION already exists" >&2
-            exit 1
-          fi
-
-          if gh release view "v$NEXT_VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release v$NEXT_VERSION already exists" >&2
-            exit 1
-          fi
-
-      - name: Update project version
-        env:
-          CURRENT_VERSION: ${{ steps.version.outputs.current }}
-          NEXT_VERSION: ${{ steps.version.outputs.next }}
-        shell: bash
-        run: |
-          sed -i "s/^version = \"$CURRENT_VERSION\"$/version = \"$NEXT_VERSION\"/" mockguard/build.gradle.kts
-          if git diff --exit-code -- mockguard/build.gradle.kts; then
-            echo "No version change was applied" >&2
-            exit 1
-          fi
-
-      - name: Create pull request
-        env:
-          GH_TOKEN: ${{ github.token }}
-          BRANCH: ${{ steps.version.outputs.branch }}
-          BASE_BRANCH: ${{ inputs.base_branch }}
-          CURRENT_VERSION: ${{ steps.version.outputs.current }}
-          NEXT_VERSION: ${{ steps.version.outputs.next }}
-          BUMP: ${{ inputs.bump }}
-        shell: bash
-        run: |
-          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
-            echo "Branch $BRANCH already exists; creating the PR from the existing branch."
-          else
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git switch -c "$BRANCH"
-            git add mockguard/build.gradle.kts
-            git commit -m "Bump version to $NEXT_VERSION"
-            git push --set-upstream origin "$BRANCH"
-          fi
-
-          EXISTING_PR="$(gh pr list \
-            --repo "$GITHUB_REPOSITORY" \
-            --base "$BASE_BRANCH" \
-            --head "$BRANCH" \
-            --state open \
-            --json url \
-            --jq '.[0].url')"
-
-          if [ -n "$EXISTING_PR" ]; then
-            echo "Pull request already exists: $EXISTING_PR"
-            exit 0
-          fi
-
-          gh pr create \
-            --repo "$GITHUB_REPOSITORY" \
-            --base "$BASE_BRANCH" \
-            --head "$BRANCH" \
-            --title "Bump version to $NEXT_VERSION" \
-            --body "Bumps mockguard from $CURRENT_VERSION to $NEXT_VERSION using a $BUMP release bump." \
-            --draft
+      - name: Bump version
+        uses: jfrz38/version-bump-action@v0
+        with:
+          bump: ${{ inputs.bump }}
+          strategy: gradle-kts
+          version-file: mockguard/build.gradle.kts
+          base-branch: ${{ inputs.base_branch }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          pr-body: Bumps mockguard from {current-version} to {next-version} using a {bump} release bump.
