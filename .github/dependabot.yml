@@ -4,6 +4,8 @@ updates:
     directory: "/mockguard"
     schedule:
       interval: "monthly"
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: "[Dependency Update]"
     groups:
@@ -15,6 +17,8 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: "[CI Update]"
     groups:
