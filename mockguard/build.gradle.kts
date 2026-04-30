@@ -3,7 +3,7 @@ plugins {
     `maven-publish`
     signing
     id("org.jreleaser") version "1.23.0"
-    kotlin("jvm") version "2.3.20"
+    kotlin("jvm") version "2.3.21"
 }
 
 import org.jreleaser.model.Active
