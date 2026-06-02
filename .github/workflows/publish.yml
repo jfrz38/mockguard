@@ -52,14 +52,14 @@ jobs:
         run: gh release view "$TAG" --repo "$GITHUB_REPOSITORY"
 
       - name: Check out release tag
-        uses: actions/checkout@v6
+        uses: actions/checkout@v6.0.2
         with:
           ref: ${{ steps.version.outputs.tag }}
           fetch-depth: 0
 
       - id: version-check
         name: Check version is not already published
-        uses: jfrz38/check-version-change@v1
+        uses: jfrz38/check-version-change@v1.1.0
         with:
           file-path: mockguard/build.gradle.kts
           package-name: io.github.jfrz38:mockguard
