@@ -96,17 +96,17 @@ jobs:
         env:
           EXPECTED_VERSION: ${{ steps.version.outputs.version }}
         run: |
-          PROJECT_VERSION="$(./gradlew -q properties | awk -F': ' '$1 == "version" {print $2; exit}')"
+          PROJECT_VERSION="$(make version)"
           if [ "$PROJECT_VERSION" != "$EXPECTED_VERSION" ]; then
             echo "Release version $EXPECTED_VERSION does not match project version $PROJECT_VERSION" >&2
             exit 1
           fi
 
       - name: Run tests
-        run: ./gradlew test
+        run: make test
 
       - name: Validate JReleaser configuration
-        run: ./gradlew --stacktrace jreleaserConfig --deploy --dryrun
+        run: make publish-dryrun
 
       - name: Publish to Maven Central
-        run: ./gradlew --stacktrace --info publish jreleaserDeploy
+        run: make publish-maven
