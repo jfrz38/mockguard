@@ -13,10 +13,6 @@ jobs:
   build-and-test:
     name: build-and-test
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: mockguard
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7.0.0
@@ -34,4 +30,4 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build and test
-        run: ./gradlew build
+        run: make build

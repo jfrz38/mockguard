@@ -12,9 +12,6 @@ jobs:
   create-release:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    defaults:
-      run:
-        working-directory: ./mockguard
 
     steps:
       - name: Check out repository
@@ -36,24 +33,34 @@ jobs:
         run: chmod +x gradlew
 
       - name: Run tests
-        run: ./gradlew test
+        run: make test
 
       - name: Resolve release version
         id: version
         run: |
-          VERSION="$(./gradlew -q properties | awk -F': ' '$1 == "version" {print $2; exit}')"
+          VERSION="$(make version)"
           if [ -z "$VERSION" ]; then
             echo "Could not resolve project version" >&2
             exit 1
           fi
+          SCANNER_VERSION="$(make scanner-version)"
+          if [ -z "$SCANNER_VERSION" ]; then
+            echo "Could not resolve scanner version" >&2
+            exit 1
+          fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "scanner_version=$SCANNER_VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build scanner release artifacts
+        run: ./gradlew :mockguard-scanner:distZip :mockguard-scanner:distTar :mockguard-scanner:fatJar
 
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.version.outputs.tag }}
           VERSION: ${{ steps.version.outputs.version }}
+          SCANNER_VERSION: ${{ steps.version.outputs.scanner_version }}
         run: |
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Release $TAG already exists; nothing to create."
@@ -70,4 +77,7 @@ jobs:
           gh release create "$TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --title "$TAG" \
-            --generate-notes
+            --generate-notes \
+            "mockguard-scanner/build/libs/mockguard-scanner-$SCANNER_VERSION-cli.jar#mockguard-scanner-$SCANNER_VERSION-cli.jar" \
+            "mockguard-scanner/build/distributions/mockguard-scanner-$SCANNER_VERSION.zip#mockguard-scanner-$SCANNER_VERSION.zip" \
+            "mockguard-scanner/build/distributions/mockguard-scanner-$SCANNER_VERSION.tar#mockguard-scanner-$SCANNER_VERSION.tar"

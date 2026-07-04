@@ -45,6 +45,8 @@ That second case is especially valuable. If a service is injected but the test d
 
 `verifyNoInteractions(...)` and `verifyNoMoreInteractions(...)` are supported transparently through runtime interception of Mockito, so test code does not need wrappers or custom APIs.
 
+Mockito-based wrappers, such as `mockito-kotlin`, are supported when they delegate to Mockito verification APIs. Other mocking frameworks such as MockK, ScalaMock, Spock mocks, EasyMock, or JMock are outside the scope of `mockguard`.
+
 ## Kotlin Example
 
 ```kotlin
@@ -201,6 +203,207 @@ dependencies {
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.2")
 }
 ```
+
+## Static Scanner CLI
+
+`mockguard-scanner` is an optional static bytecode scanner. It analyzes compiled test `.class` files and reports Mockito mocks that are structurally present but not verified in the same class.
+
+It complements the runtime JUnit extension:
+
+| Tool                | When it runs                | What it checks                                  |
+|---------------------|-----------------------------|-------------------------------------------------|
+| `mockguard`         | During test execution       | Real runtime mock invocations and verifications |
+| `mockguard-scanner` | After test compilation / CI | Static bytecode patterns in compiled classes    |
+
+### Install / Download
+
+Download the `mockguard-scanner` distribution archive from the GitHub release and unpack it. The archive contains platform scripts:
+
+```text
+bin/mockguard-scanner
+bin/mockguard-scanner.bat
+```
+
+### Run the CLI
+
+Run it against compiled test classes:
+
+```bash
+mockguard-scanner \
+  --class-dir=mockguard/build/classes/kotlin/test \
+  --format=console
+```
+
+For mixed Java/Kotlin projects, repeat `--class-dir`:
+
+```bash
+mockguard-scanner \
+  --class-dir=build/classes/java/test \
+  --class-dir=build/classes/kotlin/test \
+  --format=console
+```
+
+If you prefer the standalone JAR, use `java -jar`:
+
+```bash
+java -jar mockguard-scanner-0.1.0-cli.jar \
+  --class-dir=build/classes/kotlin/test \
+  --format=console
+```
+
+### Build from source
+
+Build the CLI distribution from this repository:
+
+```bash
+./gradlew :mockguard-scanner:installDist
+```
+
+The generated scripts are available under:
+
+```text
+mockguard-scanner/build/install/mockguard-scanner/bin/
+```
+
+Build the standalone CLI JAR from this repository:
+
+```bash
+./gradlew :mockguard-scanner:fatJar
+```
+
+Run the generated JAR with:
+
+```bash
+java -jar mockguard-scanner/build/libs/mockguard-scanner-0.1.0-cli.jar \
+  --class-dir=build/classes/kotlin/test \
+  --format=console
+```
+
+CLI options with values accept either `--option=value` or `--option value`.
+
+Filter scanned classes with simple wildcard patterns matched against the relative `.class` path or class name:
+
+```bash
+mockguard-scanner \
+  --class-dir=build/classes/kotlin/test \
+  --include='*ServiceTest' \
+  --exclude='*Generated*' \
+  --format=console
+```
+
+Generate a SonarQube Generic Issue Import report:
+
+```bash
+mockguard-scanner \
+  --class-dir=mockguard/build/classes/kotlin/test \
+  --format=sonarqube \
+  --output=build/reports/mockguard-issues.json
+```
+
+Supported scanner formats:
+
+| Format      | Purpose                                           |
+|-------------|---------------------------------------------------|
+| `console`   | Human-readable local output                       |
+| `json`      | Machine-readable output for custom tooling        |
+| `sonarqube` | JSON report for `sonar.externalIssuesReportPaths` |
+
+Supported scanner modes:
+
+| Mode   | Behavior                                   |
+|--------|--------------------------------------------|
+| `FAIL` | Exit with code 1 when violations are found |
+| `WARN` | Print a warning but exit successfully      |
+| `OFF`  | Produce output but never fail              |
+
+Exit codes:
+
+| Exit code | Meaning                                                                            |
+|-----------|------------------------------------------------------------------------------------|
+| `0`       | Scan completed without failing, including `WARN`/`OFF` runs with violations        |
+| `1`       | Invalid CLI usage, missing class directory, or violations found with `--mode=FAIL` |
+
+Baseline support for gradual adoption:
+
+```bash
+# Write the current scanner violations to a baseline file.
+mockguard-scanner \
+  --class-dir=build/classes/kotlin/test \
+  --write-baseline=mockguard-baseline.json \
+  --mode=OFF
+
+# In CI, ignore known baseline violations and fail only on new ones.
+mockguard-scanner \
+  --class-dir=build/classes/kotlin/test \
+  --baseline=mockguard-baseline.json \
+  --fail-on=NEW \
+  --mode=FAIL
+```
+
+Baseline entries are keyed by `className`, `fieldName`, and `fieldType`. When a baseline is applied, reports show only new violations and include a summary of known, new, and resolved baseline entries.
+
+Example Gradle task in a consuming project:
+
+```kotlin
+tasks.register<JavaExec>("mockguardScan") {
+    val javaTestClasses = layout.buildDirectory.dir("classes/java/test")
+    val kotlinTestClasses = layout.buildDirectory.dir("classes/kotlin/test")
+    classpath = configurations.detachedConfiguration(
+        dependencies.create("io.github.jfrz38:mockguard-scanner:0.1.0")
+    )
+    mainClass = "com.mockguard.scanner.MainKt"
+    args(
+        "--class-dir=${javaTestClasses.get().asFile}",
+        "--class-dir=${kotlinTestClasses.get().asFile}",
+        "--format=console",
+        "--mode=FAIL",
+        "--verbose",
+    )
+    dependsOn("compileTestJava", "compileTestKotlin")
+}
+```
+
+Example Maven usage through `exec-maven-plugin`:
+
+```xml
+<plugin>
+    <groupId>org.codehaus.mojo</groupId>
+    <artifactId>exec-maven-plugin</artifactId>
+    <executions>
+        <execution>
+            <id>mockguard-scan</id>
+            <phase>test-compile</phase>
+            <goals>
+                <goal>java</goal>
+            </goals>
+            <configuration>
+                <mainClass>com.mockguard.scanner.MainKt</mainClass>
+                <arguments>
+                    <argument>--class-dir=${project.build.testOutputDirectory}</argument>
+                    <argument>--format=console</argument>
+                    <argument>--mode=FAIL</argument>
+                </arguments>
+            </configuration>
+        </execution>
+    </executions>
+</plugin>
+```
+
+### Scanner Limitations
+
+The scanner is intentionally lightweight and heuristic in V1. It currently does not support:
+
+- mocks assigned to local variables before verification, such as `val m = service; verify(m)`
+- indirect helper verification, such as `verifyService(service)`
+- dynamically created mocks via `Mockito.mock(...)`
+- exact source line mapping in reports
+- SARIF output
+
+The scanner supports direct Mockito verification calls and common `mockito-kotlin` verification wrappers. Other mocking frameworks such as MockK, ScalaMock, Spock mocks, EasyMock, or JMock are outside the scanner scope.
+
+Use `--verbose` to include details about `.class` files that could not be scanned. Without `--verbose`, the console output only reports the skipped class count.
+
+Use the runtime `mockguard` extension when you need full behavioral guarantees.
 
 ## Requirements
 
