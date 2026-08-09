@@ -83,10 +83,64 @@ class BaselineTest {
         assertEquals(1, filtered.baselineSummary?.knownViolations)
     }
 
+    @Test
+    fun `uses method identity for selected test baselines`() {
+        val baselineFile = tempDir.resolve("mockguard-baseline.json")
+        val firstMethod = violation(
+            className = "com.example.MethodTest",
+            fieldName = "service",
+            methodName = "first",
+        )
+        val secondMethod = violation(
+            className = "com.example.MethodTest",
+            fieldName = "service",
+            methodName = "second",
+        )
+
+        Baseline.write(baselineFile, listOf(firstMethod))
+        val filtered = Baseline.apply(
+            ScanResult(totalClasses = 1, violations = listOf(firstMethod, secondMethod)),
+            baselineFile,
+        )
+        val baseline = Files.readString(baselineFile)
+
+        assertContains(baseline, "\"version\": 2")
+        assertContains(baseline, "\"methodName\": \"first\"")
+        assertContains(baseline, "\"methodDescriptor\": \"()V\"")
+        assertEquals(listOf("second"), filtered.violations.map { it.methodName })
+    }
+
+    @Test
+    fun `reads version one baseline without matching method findings`() {
+        val baselineFile = tempDir.resolve("mockguard-baseline.json")
+        Baseline.write(
+            baselineFile,
+            listOf(violation(className = "com.example.LegacyTest", fieldName = "service")),
+        )
+
+        val filtered = Baseline.apply(
+            ScanResult(
+                totalClasses = 1,
+                violations = listOf(
+                    violation(
+                        className = "com.example.LegacyTest",
+                        fieldName = "service",
+                        methodName = "test",
+                    ),
+                ),
+            ),
+            baselineFile,
+        )
+
+        assertEquals(1, filtered.violations.size)
+        assertEquals(0, filtered.baselineSummary?.knownViolations)
+    }
+
     private fun violation(
         className: String,
         fieldName: String,
         fieldType: String = "com.example.Dependency",
+        methodName: String? = null,
     ): Violation = Violation(
         className = className,
         sourceFile = "${className.substringAfterLast('.')}.kt",
@@ -94,5 +148,7 @@ class BaselineTest {
         fieldName = fieldName,
         fieldType = fieldType,
         hadInvocations = true,
+        methodName = methodName,
+        methodDescriptor = methodName?.let { "()V" },
     )
 }

@@ -14,10 +14,13 @@ object SonarQubeReporter {
                 else "${v.className.replace('.', '/').substringBeforeLast('/')}/$sourceName"
             } ?: "${v.className.replace('.', '/')}.java"
 
+            val methodContext = v.methodName
+                ?.let { " in test '$it${v.methodDescriptor.orEmpty()}'" }
+                .orEmpty()
             val message = if (v.hadInvocations) {
-                "Mock '${v.fieldName}' (${v.fieldType}) had invocation(s) but was never verified."
+                "Mock '${v.fieldName}' (${v.fieldType})$methodContext had invocation(s) but was never verified."
             } else {
-                "Mock '${v.fieldName}' (${v.fieldType}) was never verified. Use verifyNoInteractions() if the mock is intentionally unused."
+                "Mock '${v.fieldName}' (${v.fieldType})$methodContext was never verified. Use verifyNoInteractions() if the mock is intentionally unused."
             }
 
             val line = if (v.lineNumber > 0) v.lineNumber else 1

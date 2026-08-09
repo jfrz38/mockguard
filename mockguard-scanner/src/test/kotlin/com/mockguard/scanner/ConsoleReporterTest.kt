@@ -58,6 +58,24 @@ class ConsoleReporterTest {
     }
 
     @Test
+    fun `reports selected method location`() {
+        val violation = Violation(
+            className = "com.example.MyTest",
+            sourceFile = "MyTest.kt",
+            lineNumber = 0,
+            fieldName = "service",
+            fieldType = "Service",
+            hadInvocations = true,
+            methodName = "selected test",
+            methodDescriptor = "()V",
+        )
+
+        val report = ConsoleReporter.report(ScanResult(totalClasses = 1, violations = listOf(violation)))
+
+        assertContains(report, "com.example.MyTest#selected test()V")
+    }
+
+    @Test
     fun `reports skipped class count without verbose details`() {
         val result = ScanResult(
             totalClasses = 2,

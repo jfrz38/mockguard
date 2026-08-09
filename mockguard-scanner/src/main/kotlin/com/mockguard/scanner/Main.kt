@@ -2,7 +2,7 @@ package com.mockguard.scanner
 
 import com.mockguard.scanner.baseline.Baseline
 import com.mockguard.scanner.config.ScannerConfig
-import com.mockguard.scanner.model.ScanResult
+import com.mockguard.scanner.config.TestSelector
 import com.mockguard.scanner.output.ConsoleReporter
 import com.mockguard.scanner.output.JsonReporter
 import com.mockguard.scanner.output.SonarQubeReporter
@@ -26,15 +26,17 @@ fun main(args: Array<String>) {
         }
     }
 
-    val rawResult = classDirs
-        .map { classDir ->
-            ClassFileScanner(
-                classDir = classDir,
-                includes = config.includes,
-                excludes = config.excludes,
-            ).scan()
-        }
-        .combine()
+    val rawResult = try {
+        ClassFileScanner(
+            classDirs = classDirs,
+            includes = config.includes,
+            excludes = config.excludes,
+            tests = config.tests,
+        ).scan()
+    } catch (error: IllegalArgumentException) {
+        System.err.println("[mockguard-scanner] Error: ${error.message}")
+        kotlin.system.exitProcess(1)
+    }
 
     config.writeBaseline?.let { baselinePath ->
         Baseline.write(Paths.get(baselinePath), rawResult.violations)
@@ -67,7 +69,7 @@ fun main(args: Array<String>) {
     }
 }
 
-private fun parseArgs(args: Array<String>): ScannerConfig? {
+internal fun parseArgs(args: Array<String>): ScannerConfig? {
     val classDirs = mutableListOf<String>()
     var mode = ScannerConfig.OutputMode.FAIL
     var format = ScannerConfig.OutputFormat.CONSOLE
@@ -78,6 +80,7 @@ private fun parseArgs(args: Array<String>): ScannerConfig? {
     var failOn = ScannerConfig.FailOn.VIOLATIONS
     val includes = mutableListOf<String>()
     val excludes = mutableListOf<String>()
+    val tests = mutableListOf<TestSelector>()
 
     var index = 0
     while (index < args.size) {
@@ -101,6 +104,8 @@ private fun parseArgs(args: Array<String>): ScannerConfig? {
             arg == "--include" -> includes += args.valueAfter(index, arg).also { index++ }
             arg.startsWith("--exclude=") -> excludes += arg.removePrefix("--exclude=")
             arg == "--exclude" -> excludes += args.valueAfter(index, arg).also { index++ }
+            arg.startsWith("--test=") -> tests += TestSelector.parse(arg.removePrefix("--test="))
+            arg == "--test" -> tests += TestSelector.parse(args.valueAfter(index, arg).also { index++ })
             arg == "--verbose" -> verbose = true
             arg == "--help" || arg == "-h" -> {
                 printHelp()
@@ -111,11 +116,7 @@ private fun parseArgs(args: Array<String>): ScannerConfig? {
         index++
     }
 
-    if (classDirs.isEmpty()) {
-        System.err.println("[mockguard-scanner] Error: at least one --class-dir is required")
-        printHelp()
-        kotlin.system.exitProcess(1)
-    }
+    require(classDirs.isNotEmpty()) { "At least one --class-dir is required" }
 
     return ScannerConfig(
         classDirs = classDirs,
@@ -128,6 +129,7 @@ private fun parseArgs(args: Array<String>): ScannerConfig? {
         failOn = failOn,
         includes = includes,
         excludes = excludes,
+        tests = tests.distinct(),
     )
 }
 
@@ -136,12 +138,6 @@ private fun Array<String>.valueAfter(index: Int, option: String): String {
     require(!value.isNullOrBlank() && !value.startsWith("--")) { "Missing value for $option" }
     return value
 }
-
-private fun List<ScanResult>.combine(): ScanResult = ScanResult(
-    totalClasses = sumOf { it.totalClasses },
-    violations = flatMap { it.violations },
-    skippedClasses = flatMap { it.skippedClasses },
-)
 
 private fun printHelp() {
     println(
@@ -162,10 +158,12 @@ private fun printHelp() {
         |  --fail-on=VIOLATIONS|NEW Failure criterion when mode=FAIL (default: VIOLATIONS)
         |  --include=<pattern>   Include only matching class paths or names. Can be repeated
         |  --exclude=<pattern>   Exclude matching class paths or names. Can be repeated
+        |  --test=<class>#<method>[<descriptor>] Scan one JVM method. Can be repeated
         |  --verbose             Include skipped class details in console output
         |  --help, -h            Show this help
         |
         |Options with values also accept a space instead of '=', for example --class-dir build/classes/kotlin/test.
+        |Use a JVM descriptor to disambiguate overloads, for example --test='com.example.MyTest#case(I)V'.
         """.trimMargin(),
     )
 }

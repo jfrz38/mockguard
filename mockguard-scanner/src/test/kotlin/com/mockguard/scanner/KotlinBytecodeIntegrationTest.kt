@@ -1,5 +1,7 @@
 package com.mockguard.scanner
 
+import com.mockguard.scanner.config.TestSelector
+import com.mockguard.scanner.fixtures.KotlinBacktickMethodFixture
 import com.mockguard.scanner.fixtures.KotlinCustomVerifyHelperFixture
 import com.mockguard.scanner.fixtures.KotlinDirectMockitoVerificationFixture
 import com.mockguard.scanner.fixtures.KotlinMockitoKotlinNoInteractionsFixture
@@ -50,13 +52,28 @@ class KotlinBytecodeIntegrationTest {
         assertEquals("dependency", violations[0].fieldName)
     }
 
-    private fun scan(type: Class<*>): List<Violation> {
+    @Test
+    fun `selects Kotlin backtick method by its JVM name`() {
+        val selector = TestSelector.parse(
+            "${KotlinBacktickMethodFixture::class.java.name}#unverified method",
+        )
+        val violations = scan(KotlinBacktickMethodFixture::class.java, listOf(selector))
+
+        assertEquals(1, violations.size)
+        assertEquals("unverified method", violations.single().methodName)
+        assertEquals("()V", violations.single().methodDescriptor)
+    }
+
+    private fun scan(
+        type: Class<*>,
+        tests: List<TestSelector> = emptyList(),
+    ): List<Violation> {
         val resourceName = type.name.replace('.', '/') + ".class"
         val classBytes = type.classLoader.getResourceAsStream(resourceName)?.use { it.readBytes() }
             ?: error("Class bytes not found for ${type.name}")
 
         val reader = ClassReader(classBytes)
-        val visitor = MockGuardClassVisitor()
+        val visitor = MockGuardClassVisitor(tests)
         reader.accept(visitor, ClassReader.SKIP_DEBUG or ClassReader.SKIP_FRAMES)
         return visitor.getViolations()
     }

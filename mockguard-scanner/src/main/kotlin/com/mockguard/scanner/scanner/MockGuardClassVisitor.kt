@@ -1,5 +1,6 @@
 package com.mockguard.scanner.scanner
 
+import com.mockguard.scanner.config.TestSelector
 import com.mockguard.scanner.model.MockField
 import com.mockguard.scanner.model.Violation
 import net.bytebuddy.jar.asm.AnnotationVisitor
@@ -16,7 +17,9 @@ private const val GUARDED_MOCK_DESC = "Lcom/mockguard/GuardedMock;"
 
 private val EMPTY_ANNOTATION_VISITOR = object : AnnotationVisitor(Opcodes.ASM9) {}
 
-class MockGuardClassVisitor : ClassVisitor(Opcodes.ASM9) {
+class MockGuardClassVisitor(
+    private val selectedTests: List<TestSelector> = emptyList(),
+) : ClassVisitor(Opcodes.ASM9) {
 
     private val verificationCallMatcher = CompositeVerificationCallMatcher()
 
@@ -26,6 +29,8 @@ class MockGuardClassVisitor : ClassVisitor(Opcodes.ASM9) {
     private val verifiedFieldNames = mutableSetOf<String>()
     private val invokedFieldNames = mutableSetOf<String>()
     private val violations = mutableListOf<Violation>()
+    private val visitedMethods = mutableListOf<JvmMethod>()
+    private val selectedMethodStates = linkedMapOf<JvmMethod, MethodScanState>()
     private var hasGuardedMock = false
 
     override fun visit(
@@ -90,13 +95,33 @@ class MockGuardClassVisitor : ClassVisitor(Opcodes.ASM9) {
         signature: String?,
         exceptions: Array<String>?,
     ): MethodVisitor {
+        val method = JvmMethod(name, descriptor)
+        visitedMethods += method
+
+        if (selectedTests.isNotEmpty()) {
+            val selected = selectedTests.any {
+                it.methodName == name && (it.methodDescriptor == null || it.methodDescriptor == descriptor)
+            }
+            if (!selected) return EMPTY_METHOD_VISITOR
+
+            val state = selectedMethodStates.getOrPut(method, ::MethodScanState)
+            return tracker(state.verifiedFieldNames, state.invokedFieldNames)
+        }
+
+        return tracker(verifiedFieldNames, invokedFieldNames)
+    }
+
+    private fun tracker(
+        verifiedNames: MutableSet<String>,
+        invokedNames: MutableSet<String>,
+    ): MethodVisitor {
         return MethodInsnTracker(
             opcodesVersion = Opcodes.ASM9,
             delegate = null,
             internalClassName = className,
             knownMockFields = mockFields,
-            verifiedNames = verifiedFieldNames,
-            invokedNames = invokedFieldNames,
+            verifiedNames = verifiedNames,
+            invokedNames = invokedNames,
             verificationCallMatcher = verificationCallMatcher,
         )
     }
@@ -108,21 +133,58 @@ class MockGuardClassVisitor : ClassVisitor(Opcodes.ASM9) {
             mockFields
         }
 
+        if (selectedTests.isEmpty()) {
+            addViolations(effectiveMocks, verifiedFieldNames, invokedFieldNames)
+            return
+        }
+
+        validateSelectedTests()
+        for ((method, state) in selectedMethodStates) {
+            addViolations(
+                effectiveMocks = effectiveMocks,
+                verifiedNames = state.verifiedFieldNames,
+                invokedNames = state.invokedFieldNames,
+                method = method,
+            )
+        }
+    }
+
+    private fun validateSelectedTests() {
+        for (selector in selectedTests) {
+            val namedMethods = visitedMethods.filter { it.name == selector.methodName }
+            if (selector.methodDescriptor == null) {
+                require(namedMethods.isNotEmpty()) {
+                    "Selected test method not found: ${selector.className}#${selector.methodName}"
+                }
+                require(namedMethods.size == 1) {
+                    "Selected test method is overloaded; add a JVM descriptor: ${selector.className}#${selector.methodName}"
+                }
+            } else {
+                require(namedMethods.any { it.descriptor == selector.methodDescriptor }) {
+                    "Selected test method not found: ${selector.className}#${selector.methodName}${selector.methodDescriptor}"
+                }
+            }
+        }
+    }
+
+    private fun addViolations(
+        effectiveMocks: List<MockField>,
+        verifiedNames: Set<String>,
+        invokedNames: Set<String>,
+        method: JvmMethod? = null,
+    ) {
         for (field in effectiveMocks) {
-            if (field.isIgnored) continue
-            if (field.name in verifiedFieldNames) continue
+            if (field.isIgnored || field.name in verifiedNames) continue
 
-            val hadInvocations = field.name in invokedFieldNames
-
-            violations.add(
-                Violation(
-                    className = className,
-                    sourceFile = sourceFile,
-                    lineNumber = 0,
-                    fieldName = field.name,
-                    fieldType = typeDescriptorToName(field.descriptor),
-                    hadInvocations = hadInvocations,
-                ),
+            violations += Violation(
+                className = className,
+                sourceFile = sourceFile,
+                lineNumber = 0,
+                fieldName = field.name,
+                fieldType = typeDescriptorToName(field.descriptor),
+                hadInvocations = field.name in invokedNames,
+                methodName = method?.name,
+                methodDescriptor = method?.descriptor,
             )
         }
     }
@@ -138,6 +200,18 @@ class MockGuardClassVisitor : ClassVisitor(Opcodes.ASM9) {
             }
         }
     }
+}
+
+private val EMPTY_METHOD_VISITOR = object : MethodVisitor(Opcodes.ASM9) {}
+
+private data class JvmMethod(
+    val name: String,
+    val descriptor: String,
+)
+
+private class MethodScanState {
+    val verifiedFieldNames = mutableSetOf<String>()
+    val invokedFieldNames = mutableSetOf<String>()
 }
 
 private class MethodInsnTracker(

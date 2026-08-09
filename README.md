@@ -291,6 +291,33 @@ mockguard-scanner \
   --format=console
 ```
 
+Scan one JVM test method with `--test=<binary-class>#<method>`. Repeat the option to scan a list of methods:
+
+```bash
+mockguard-scanner \
+  --class-dir=build/classes/kotlin/test \
+  --test='com.example.OrderServiceTest#createsOrder' \
+  --test='com.example.OrderServiceTest#rejectsInvalidOrder' \
+  --format=console
+```
+
+The method state is isolated for every selected test, so a verification in one method cannot satisfy another method. If the method is overloaded, append its JVM descriptor:
+
+```bash
+mockguard-scanner \
+  --class-dir=build/classes/java/test \
+  --test='com.example.OrderServiceTest#createsOrder(Ljava/lang/String;)V'
+```
+
+Kotlin backtick names use their literal JVM name, and nested classes use their binary name. Quote both forms in the shell:
+
+```bash
+--test='com.example.OrderServiceTest#rejects invalid order'
+--test='com.example.OuterTest$NestedTest#rejectsOrder'
+```
+
+`--test` intersects with `--include` and `--exclude`. Selecting a missing method, an ambiguous overload, or a class removed by those filters is an error. Without `--test`, scanning remains aggregated by class.
+
 Generate a SonarQube Generic Issue Import report:
 
 ```bash
@@ -340,7 +367,7 @@ mockguard-scanner \
   --mode=FAIL
 ```
 
-Baseline entries are keyed by `className`, `fieldName`, and `fieldType`. When a baseline is applied, reports show only new violations and include a summary of known, new, and resolved baseline entries.
+Baseline entries from class-level scans are keyed by `className`, `fieldName`, and `fieldType`. Entries from `--test` scans additionally include `methodName` and `methodDescriptor`, so one method cannot suppress a violation from another. Version 1 baseline files remain readable, but class-level entries do not suppress method-level findings.
 
 Example Gradle task in a consuming project:
 
@@ -398,6 +425,12 @@ The scanner is intentionally lightweight and heuristic in V1. It currently does 
 - dynamically created mocks via `Mockito.mock(...)`
 - exact source line mapping in reports
 - SARIF output
+- individual invocations of parameterized, repeated, or template tests; `--test` selects their shared JVM method
+- individual dynamic tests created by a test factory
+- inherited test resolution or automatic inclusion of lifecycle and helper methods
+- lambda bodies or other compiler-generated methods called by a selected method
+
+Method selection targets methods physically declared in the selected `.class` file. It does not attempt to reproduce JUnit discovery or runtime execution.
 
 The scanner supports direct Mockito verification calls and common `mockito-kotlin` verification wrappers. Other mocking frameworks such as MockK, ScalaMock, Spock mocks, EasyMock, or JMock are outside the scanner scope.
 

@@ -14,14 +14,15 @@ object ConsoleReporter {
             }
         }
 
-        val violationsByClass = result.violations.groupBy { it.className }
+        val violationsByLocation = result.violations.groupBy { it.locationName() }
+        val classCount = result.violations.map { it.className }.distinct().size
 
         return buildString {
-            appendLine("[mockguard-scanner] Found ${result.violations.size} unverified mock(s) in ${violationsByClass.size} class(es).")
+            appendLine("[mockguard-scanner] Found ${result.violations.size} unverified mock(s) in $classCount class(es).")
             appendLine()
 
-            for ((className, violations) in violationsByClass) {
-                appendLine("❌ $className")
+            for ((location, violations) in violationsByLocation) {
+                appendLine("❌ $location")
                 for (v in violations) {
                     val reason = if (v.hadInvocations) {
                         "had invocation(s) but was never verified"
@@ -38,6 +39,9 @@ object ConsoleReporter {
             appendSkippedClasses(result, verbose)
         }
     }
+
+    private fun Violation.locationName(): String =
+        methodName?.let { "$className#$it${methodDescriptor.orEmpty()}" } ?: className
 
     private fun StringBuilder.appendBaselineSummary(result: ScanResult) {
         val baseline = result.baselineSummary ?: return

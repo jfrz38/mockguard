@@ -18,6 +18,8 @@ class SonarQubeReporterTest {
                 fieldName = "service",
                 fieldType = "com.example.Service",
                 hadInvocations = true,
+                methodName = "test",
+                methodDescriptor = "()V",
             ),
         )
         val result = ScanResult(totalClasses = 1, violations = violations)
@@ -28,6 +30,7 @@ class SonarQubeReporterTest {
         assertContains(report, "MAJOR")
         assertContains(report, "CODE_SMELL")
         assertContains(report, "never verified")
+        assertContains(report, "in test 'test()V'")
         assertContains(report, "15")
     }
 
