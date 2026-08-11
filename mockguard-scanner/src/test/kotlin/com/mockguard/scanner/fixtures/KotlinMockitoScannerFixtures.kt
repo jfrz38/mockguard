@@ -59,6 +59,15 @@ class KotlinCustomVerifyHelperFixture {
     }
 }
 
+class KotlinBacktickMethodFixture {
+    @Mock
+    lateinit var dependency: KotlinScannerDependency
+
+    fun `unverified method`() {
+        dependency.call()
+    }
+}
+
 interface KotlinScannerDependency {
     fun call()
 }

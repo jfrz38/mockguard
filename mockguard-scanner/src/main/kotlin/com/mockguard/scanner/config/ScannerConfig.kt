@@ -11,6 +11,7 @@ data class ScannerConfig(
     val failOn: FailOn = FailOn.VIOLATIONS,
     val includes: List<String> = emptyList(),
     val excludes: List<String> = emptyList(),
+    val tests: List<TestSelector> = emptyList(),
 ) {
     enum class OutputMode {
         FAIL, WARN, OFF;

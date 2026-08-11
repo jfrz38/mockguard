@@ -3,6 +3,8 @@ plugins {
     `java-library`
 }
 
+evaluationDependsOn(":mockguard-scanner")
+
 repositories {
     mavenCentral()
 }
@@ -18,7 +20,19 @@ dependencies {
     testImplementation(kotlin("test"))
 }
 
+val scannerFatJar = project(":mockguard-scanner").tasks.named<Jar>("fatJar")
+
 tasks.test {
+    dependsOn(scannerFatJar)
+    inputs.file(scannerFatJar.flatMap { it.archiveFile })
+
+    doFirst {
+        systemProperty(
+            "mockguard.scanner.jar",
+            scannerFatJar.get().archiveFile.get().asFile.absolutePath,
+        )
+    }
+
     useJUnitPlatform()
     filter {
         excludeTestsMatching("com.mockguard.consumer.fixtures.*")

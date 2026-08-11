@@ -22,6 +22,8 @@ class JsonReporterTest {
                     fieldName = "service",
                     fieldType = "com.example.Service",
                     hadInvocations = true,
+                    methodName = "test",
+                    methodDescriptor = "()V",
                 ),
             ),
         )
@@ -33,6 +35,8 @@ class JsonReporterTest {
         assertContains(report, "\"skippedClassCount\": 0")
         assertContains(report, "\"violationCount\": 1")
         assertContains(report, "\"className\": \"com.example.MyTest\"")
+        assertContains(report, "\"methodName\": \"test\"")
+        assertContains(report, "\"methodDescriptor\": \"()V\"")
         assertContains(report, "\"sourceFile\": \"MyTest.kt\"")
         assertContains(report, "\"hadInvocations\": true")
     }

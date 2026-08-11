@@ -38,13 +38,21 @@ object Baseline {
         }
 
         val content = Files.readString(path)
-        val entryRegex = Regex("\\{\\s*\"className\"\\s*:\\s*\"((?:\\\\.|[^\"])*)\"\\s*,\\s*\"fieldName\"\\s*:\\s*\"((?:\\\\.|[^\"])*)\"\\s*,\\s*\"fieldType\"\\s*:\\s*\"((?:\\\\.|[^\"])*)\"\\s*}")
+        val entryRegex = Regex(
+            "\\{\\s*\"className\"\\s*:\\s*\"((?:\\\\.|[^\"])*)\"\\s*," +
+                "(?:\\s*\"methodName\"\\s*:\\s*\"((?:\\\\.|[^\"])*)\"\\s*," +
+                "\\s*\"methodDescriptor\"\\s*:\\s*\"((?:\\\\.|[^\"])*)\"\\s*,)?" +
+                "\\s*\"fieldName\"\\s*:\\s*\"((?:\\\\.|[^\"])*)\"\\s*," +
+                "\\s*\"fieldType\"\\s*:\\s*\"((?:\\\\.|[^\"])*)\"\\s*}",
+        )
         return entryRegex.findAll(content)
             .map { match ->
                 ViolationKey(
                     className = unescapeJson(match.groupValues[1]),
-                    fieldName = unescapeJson(match.groupValues[2]),
-                    fieldType = unescapeJson(match.groupValues[3]),
+                    methodName = match.groupValues[2].takeIf(String::isNotEmpty)?.let(::unescapeJson),
+                    methodDescriptor = match.groupValues[3].takeIf(String::isNotEmpty)?.let(::unescapeJson),
+                    fieldName = unescapeJson(match.groupValues[4]),
+                    fieldType = unescapeJson(match.groupValues[5]),
                 )
             }
             .toList()
@@ -52,12 +60,16 @@ object Baseline {
 
     private fun serialize(keys: List<ViolationKey>): String = buildString {
         appendLine("{")
-        appendLine("  \"version\": 1,")
+        appendLine("  \"version\": ${if (keys.any { it.methodName != null }) 2 else 1},")
         appendLine("  \"violations\": [")
 
         for ((index, key) in keys.withIndex()) {
             appendLine("    {")
             appendLine("      \"className\": ${escapeJson(key.className)},")
+            if (key.methodName != null && key.methodDescriptor != null) {
+                appendLine("      \"methodName\": ${escapeJson(key.methodName)},")
+                appendLine("      \"methodDescriptor\": ${escapeJson(key.methodDescriptor)},")
+            }
             appendLine("      \"fieldName\": ${escapeJson(key.fieldName)},")
             appendLine("      \"fieldType\": ${escapeJson(key.fieldType)}")
             append("    }")
@@ -70,6 +82,8 @@ object Baseline {
 
     private fun Violation.key(): ViolationKey = ViolationKey(
         className = className,
+        methodName = methodName,
+        methodDescriptor = methodDescriptor,
         fieldName = fieldName,
         fieldType = fieldType,
     )
@@ -110,9 +124,19 @@ object Baseline {
 
 internal data class ViolationKey(
     val className: String,
+    val methodName: String? = null,
+    val methodDescriptor: String? = null,
     val fieldName: String,
     val fieldType: String,
 ) : Comparable<ViolationKey> {
     override fun compareTo(other: ViolationKey): Int =
-        compareValuesBy(this, other, ViolationKey::className, ViolationKey::fieldName, ViolationKey::fieldType)
+        compareValuesBy(
+            this,
+            other,
+            ViolationKey::className,
+            { it.methodName.orEmpty() },
+            { it.methodDescriptor.orEmpty() },
+            ViolationKey::fieldName,
+            ViolationKey::fieldType,
+        )
 }

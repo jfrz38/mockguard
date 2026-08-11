@@ -15,6 +15,8 @@ object JsonReporter {
         for ((index, violation) in result.violations.withIndex()) {
             appendLine("    {")
             appendLine("      \"className\": ${jsonEscape(violation.className)},")
+            appendLine("      \"methodName\": ${violation.methodName?.let(::jsonEscape) ?: "null"},")
+            appendLine("      \"methodDescriptor\": ${violation.methodDescriptor?.let(::jsonEscape) ?: "null"},")
             appendLine("      \"sourceFile\": ${violation.sourceFile?.let(::jsonEscape) ?: "null"},")
             appendLine("      \"lineNumber\": ${violation.lineNumber},")
             appendLine("      \"fieldName\": ${jsonEscape(violation.fieldName)},")
