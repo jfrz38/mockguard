@@ -11,7 +11,6 @@ repositories {
 val scannerCli by configurations.creating {
     isCanBeConsumed = false
     isCanBeResolved = true
-    isVisible = false
 
     attributes {
         attribute(
@@ -55,7 +54,7 @@ testing {
                 implementation("org.mockito:mockito-core:5.23.0")
                 implementation("org.mockito:mockito-junit-jupiter:5.23.0")
                 implementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
-                implementation(kotlin("test"))
+                implementation("org.jetbrains.kotlin:kotlin-test-junit5:2.3.21")
             }
 
             targets.all {
@@ -73,7 +72,7 @@ testing {
             dependencies {
                 implementation(project(":mockguard"))
                 implementation("org.mockito:mockito-core:5.23.0")
-                implementation(kotlin("test"))
+                implementation("org.jetbrains.kotlin:kotlin-test-junit5:2.3.21")
             }
 
             targets.all {

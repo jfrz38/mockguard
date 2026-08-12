@@ -71,7 +71,6 @@ val fatJar = tasks.register<Jar>("fatJar") {
 val scannerCliElements by configurations.creating {
     isCanBeConsumed = true
     isCanBeResolved = false
-    isVisible = false
 
     attributes {
         attribute(
