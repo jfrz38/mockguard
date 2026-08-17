@@ -1,6 +1,6 @@
 plugins {
     base
-    kotlin("jvm") version "2.3.21" apply false
+    kotlin("jvm") version "2.4.10" apply false
     id("org.jreleaser") version "1.25.0" apply false
 }
 
