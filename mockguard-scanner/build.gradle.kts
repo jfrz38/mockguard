@@ -24,7 +24,6 @@ dependencies {
     testImplementation("net.bytebuddy:byte-buddy-agent:$byteBuddyVersion")
     testImplementation("org.apache.groovy:groovy:4.0.24")
     testImplementation(kotlin("test"))
-    testImplementation(project(":mockguard"))
 }
 
 java {
@@ -46,16 +45,56 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
     }
 }
 
+val runtimeClasspath = configurations.runtimeClasspath
+
 val fatJar = tasks.register<Jar>("fatJar") {
-    archiveBaseName = "mockguard-scanner"
-    archiveClassifier = "cli"
-    dependsOn(configurations.runtimeClasspath)
-    from(configurations.runtimeClasspath.get().map { zipTree(it) })
-    from(sourceSets.main.get().output)
+    group = "distribution"
+    description = "Builds the executable scanner CLI JAR."
+    archiveBaseName.set("mockguard-scanner")
+    archiveClassifier.set("cli")
+    dependsOn(runtimeClasspath)
+    from(sourceSets.main.map { it.output })
+    from({
+        runtimeClasspath.get().map { dependency ->
+            if (dependency.isDirectory) dependency else zipTree(dependency)
+        }
+    })
     manifest {
-        attributes("Main-Class" to "com.mockguard.scanner.MainKt")
+        attributes("Main-Class" to application.mainClass.get())
     }
+    exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    isPreserveFileTimestamps = false
+    isReproducibleFileOrder = true
+}
+
+val scannerCliElements by configurations.creating {
+    isCanBeConsumed = true
+    isCanBeResolved = false
+
+    attributes {
+        attribute(
+            org.gradle.api.attributes.Category.CATEGORY_ATTRIBUTE,
+            objects.named(org.gradle.api.attributes.Category.LIBRARY),
+        )
+        attribute(
+            org.gradle.api.attributes.Usage.USAGE_ATTRIBUTE,
+            objects.named(org.gradle.api.attributes.Usage.JAVA_RUNTIME),
+        )
+        attribute(
+            org.gradle.api.attributes.Bundling.BUNDLING_ATTRIBUTE,
+            objects.named(org.gradle.api.attributes.Bundling.SHADOWED),
+        )
+        attribute(
+            org.gradle.api.attributes.LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE,
+            objects.named(org.gradle.api.attributes.LibraryElements.JAR),
+        )
+    }
+
+    outgoing.artifact(fatJar.flatMap { it.archiveFile }) {
+        type = "jar"
+        builtBy(fatJar)
+    }
 }
 
 publishing {
