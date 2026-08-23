@@ -1,7 +1,19 @@
-name: Publish Release
+name: Publish Product Release
 
 on:
   workflow_dispatch:
+    inputs:
+      product:
+        description: Product to publish
+        required: true
+        type: choice
+        options:
+          - mockguard
+          - scanner
+      tag:
+        description: Exact product release tag to publish
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -18,58 +30,96 @@ jobs:
 
     steps:
       - name: Verify workflow runs from main
-        working-directory: .
         run: |
           if [ "$GITHUB_REF" != "refs/heads/main" ]; then
             echo "Publish must be run from main. Current ref is $GITHUB_REF" >&2
             exit 1
           fi
 
-      - name: Resolve latest release
-        id: version
-        working-directory: .
+      - name: Resolve product configuration
+        id: product
         env:
-          GH_TOKEN: ${{ github.token }}
+          PRODUCT: ${{ inputs.product }}
+          TAG: ${{ inputs.tag }}
         run: |
-          TAG="$(gh release list --repo "$GITHUB_REPOSITORY" --limit 1 --json tagName --jq '.[0].tagName')"
-          if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
-            echo "No GitHub releases found." >&2
+          case "$PRODUCT" in
+            mockguard)
+              PREFIX="mockguard-v"
+              echo "version_file=mockguard/build.gradle.kts" >> "$GITHUB_OUTPUT"
+              echo "package_name=io.github.jfrz38:mockguard" >> "$GITHUB_OUTPUT"
+              echo "version_target=version" >> "$GITHUB_OUTPUT"
+              echo "gate=mockguardCheck" >> "$GITHUB_OUTPUT"
+              echo "dryrun_target=publish-mockguard-dryrun" >> "$GITHUB_OUTPUT"
+              echo "publish_target=publish-mockguard" >> "$GITHUB_OUTPUT"
+              ;;
+            scanner)
+              PREFIX="scanner-v"
+              echo "version_file=mockguard-scanner/build.gradle.kts" >> "$GITHUB_OUTPUT"
+              echo "package_name=io.github.jfrz38:mockguard-scanner" >> "$GITHUB_OUTPUT"
+              echo "version_target=scanner-version" >> "$GITHUB_OUTPUT"
+              echo "gate=scannerCheck" >> "$GITHUB_OUTPUT"
+              echo "dryrun_target=publish-scanner-dryrun" >> "$GITHUB_OUTPUT"
+              echo "publish_target=publish-scanner" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "Unsupported product: $PRODUCT" >&2
+              exit 1
+              ;;
+          esac
+
+          case "$TAG" in
+            "$PREFIX"[0-9]*.[0-9]*.[0-9]*) ;;
+            *)
+              echo "Tag $TAG does not use the $PREFIX prefix" >&2
+              exit 1
+              ;;
+          esac
+          VERSION="${TAG#"$PREFIX"}"
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Tag $TAG does not contain a stable semantic version" >&2
             exit 1
           fi
-          VERSION="${TAG#v}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Verify GitHub release exists
-        working-directory: .
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.version.outputs.tag }}
+          TAG: ${{ inputs.tag }}
         run: gh release view "$TAG" --repo "$GITHUB_REPOSITORY"
 
       - name: Check out release tag
         uses: actions/checkout@v7.0.1
         with:
-          ref: ${{ steps.version.outputs.tag }}
+          ref: ${{ inputs.tag }}
           fetch-depth: 0
+
+      - name: Verify tag belongs to main
+        run: |
+          git fetch origin main
+          if ! git merge-base --is-ancestor HEAD origin/main; then
+            echo "Tag ${{ inputs.tag }} is not reachable from main" >&2
+            exit 1
+          fi
 
       - id: version-check
         name: Check version is not already published
         uses: jfrz38/check-version-change@v1.3.0
         with:
-          file-path: mockguard/build.gradle.kts
-          package-name: io.github.jfrz38:mockguard
+          file-path: ${{ steps.product.outputs.version_file }}
+          package-name: ${{ steps.product.outputs.package_name }}
           registry: maven-central
           compare-source: registry
 
       - name: Verify version can be published
-        working-directory: .
         run: |
+          if [ "${{ steps.version-check.outputs.local-version }}" != "${{ steps.product.outputs.version }}" ]; then
+            echo "Tag version does not match the module version" >&2
+            exit 1
+          fi
           if [ "${{ steps.version-check.outputs.changed }}" != "true" ]; then
             echo "Version ${{ steps.version-check.outputs.local-version }} is already published to Maven Central" >&2
             exit 1
           fi
-
           if [ -n "${{ steps.version-check.outputs.compared-version }}" ] && [ "${{ steps.version-check.outputs.is-higher }}" != "true" ]; then
             echo "Version ${{ steps.version-check.outputs.local-version }} is not higher than published version ${{ steps.version-check.outputs.compared-version }}" >&2
             exit 1
@@ -88,21 +138,28 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
 
-      - name: Verify project version matches release
+      - name: Verify module version matches release
         env:
-          EXPECTED_VERSION: ${{ steps.version.outputs.version }}
+          EXPECTED_VERSION: ${{ steps.product.outputs.version }}
+          VERSION_TARGET: ${{ steps.product.outputs.version_target }}
         run: |
-          PROJECT_VERSION="$(make version)"
+          PROJECT_VERSION="$(make "$VERSION_TARGET")"
           if [ "$PROJECT_VERSION" != "$EXPECTED_VERSION" ]; then
             echo "Release version $EXPECTED_VERSION does not match project version $PROJECT_VERSION" >&2
             exit 1
           fi
 
-      - name: Run tests
-        run: make test
+      - name: Run product checks
+        env:
+          GATE: ${{ steps.product.outputs.gate }}
+        run: ./gradlew "$GATE"
 
       - name: Validate JReleaser configuration
-        run: make publish-dryrun
+        env:
+          TARGET: ${{ steps.product.outputs.dryrun_target }}
+        run: make "$TARGET"
 
-      - name: Publish to Maven Central
-        run: make publish-maven
+      - name: Publish product to Maven Central
+        env:
+          TARGET: ${{ steps.product.outputs.publish_target }}
+        run: make "$TARGET"

@@ -3,6 +3,13 @@ name: Bump Version
 on:
   workflow_dispatch:
     inputs:
+      product:
+        description: Product to bump
+        required: true
+        type: choice
+        options:
+          - mockguard
+          - scanner
       bump:
         description: Version component to bump
         required: true
@@ -35,12 +42,36 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Resolve product configuration
+        id: product
+        env:
+          PRODUCT: ${{ inputs.product }}
+        run: |
+          case "$PRODUCT" in
+            mockguard)
+              echo "version_file=mockguard/build.gradle.kts" >> "$GITHUB_OUTPUT"
+              echo "tag_prefix=mockguard-v" >> "$GITHUB_OUTPUT"
+              echo "branch_prefix=chore/bump-mockguard-version-" >> "$GITHUB_OUTPUT"
+              ;;
+            scanner)
+              echo "version_file=mockguard-scanner/build.gradle.kts" >> "$GITHUB_OUTPUT"
+              echo "tag_prefix=scanner-v" >> "$GITHUB_OUTPUT"
+              echo "branch_prefix=chore/bump-scanner-version-" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "Unsupported product: $PRODUCT" >&2
+              exit 1
+              ;;
+          esac
+
       - name: Bump version
         uses: jfrz38/version-bump-action@v0
         with:
           bump: ${{ inputs.bump }}
           strategy: gradle-kts
-          version-file: mockguard/build.gradle.kts
+          version-file: ${{ steps.product.outputs.version_file }}
+          tag-prefix: ${{ steps.product.outputs.tag_prefix }}
+          branch-prefix: ${{ steps.product.outputs.branch_prefix }}
           base-branch: ${{ inputs.base_branch }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          pr-body: Bumps mockguard from {current-version} to {next-version} using a {bump} release bump.
+          pr-body: Bumps ${{ inputs.product }} from {current-version} to {next-version} using a {bump} release bump.

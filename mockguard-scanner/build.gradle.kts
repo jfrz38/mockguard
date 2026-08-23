@@ -3,11 +3,16 @@ plugins {
     `java-library`
     application
     `maven-publish`
-    signing
+    id("org.jreleaser")
 }
+
+import org.jreleaser.model.Active
+import org.jreleaser.model.Http
 
 group = "io.github.jfrz38"
 version = "0.1.0"
+
+val publicationNamespace = group.toString()
 
 repositories {
     mavenCentral()
@@ -28,6 +33,13 @@ dependencies {
 
 java {
     withSourcesJar()
+}
+
+val emptyJavadocJar by tasks.registering(Jar::class) {
+    archiveClassifier.set("javadoc")
+    from(rootProject.file("README.md")) {
+        rename { "README.md" }
+    }
 }
 
 application {
@@ -101,7 +113,7 @@ publishing {
     publications {
         create<MavenPublication>("mavenJava") {
             from(components["java"])
-            artifact(fatJar)
+            artifact(emptyJavadocJar)
 
             pom {
                 name.set("mockguard-scanner")
@@ -125,6 +137,10 @@ publishing {
                     developerConnection.set("scm:git:ssh://git@github.com/jfrz38/mockguard.git")
                     url.set("https://github.com/jfrz38/mockguard")
                 }
+                issueManagement {
+                    system.set("GitHub Issues")
+                    url.set("https://github.com/jfrz38/mockguard/issues")
+                }
             }
         }
     }
@@ -136,12 +152,44 @@ publishing {
     }
 }
 
-signing {
-    val signingKey = findProperty("signingKey") as String?
-    val signingPassword = findProperty("signingPassword") as String?
-    if (!signingKey.isNullOrBlank() && !signingPassword.isNullOrBlank()) {
-        useInMemoryPgpKeys(signingKey, signingPassword)
-        sign(publishing.publications)
+jreleaser {
+    gitRootSearch.set(true)
+    signing {
+        active.set(Active.ALWAYS)
+        armored.set(true)
+        pgp {
+            active.set(Active.ALWAYS)
+            armored.set(true)
+        }
+    }
+    deploy {
+        maven {
+            mavenCentral {
+                create("release-deploy") {
+                    active.set(Active.RELEASE)
+                    url.set("https://central.sonatype.com/api/v1/publisher")
+                    authorization.set(Http.Authorization.BEARER)
+                    namespace.set(publicationNamespace)
+                    snapshotSupported.set(false)
+                    applyMavenCentralRules.set(true)
+                    retryDelay.set(10)
+                    maxRetries.set(6)
+                    stagingRepository("build/staging-deploy")
+                }
+            }
+            nexus2 {
+                create("snapshot-deploy") {
+                    active.set(Active.SNAPSHOT)
+                    snapshotUrl.set("https://central.sonatype.com/repository/maven-snapshots/")
+                    authorization.set(Http.Authorization.BEARER)
+                    snapshotSupported.set(true)
+                    closeRepository.set(true)
+                    releaseRepository.set(true)
+                    applyMavenCentralRules.set(true)
+                    stagingRepository("build/staging-deploy")
+                }
+            }
+        }
     }
 }
 

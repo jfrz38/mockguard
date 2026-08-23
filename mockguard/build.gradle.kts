@@ -1,8 +1,7 @@
 plugins {
     `java-library`
     `maven-publish`
-    signing
-    id("org.jreleaser") version "1.25.0"
+    id("org.jreleaser")
     kotlin("jvm")
 }
 
@@ -95,16 +94,6 @@ publishing {
             name = "staging"
             url = layout.buildDirectory.dir("staging-deploy").get().asFile.toURI()
         }
-    }
-}
-
-signing {
-    val signingKey: String? = findProperty("signingKey") as String?
-    val signingPassword: String? = findProperty("signingPassword") as String?
-
-    if (!signingKey.isNullOrBlank() && !signingPassword.isNullOrBlank()) {
-        useInMemoryPgpKeys(signingKey, signingPassword)
-        sign(publishing.publications)
     }
 }
 

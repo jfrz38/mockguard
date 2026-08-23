@@ -1,4 +1,4 @@
-name: Create Release
+name: Create Product Releases
 
 on:
   push:
@@ -10,8 +10,21 @@ permissions:
 
 jobs:
   create-release:
+    name: Release ${{ matrix.product }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - product: mockguard
+            version_file: mockguard/build.gradle.kts
+            tag_prefix: mockguard-v
+            legacy_version: 0.1.1
+          - product: scanner
+            version_file: mockguard-scanner/build.gradle.kts
+            tag_prefix: scanner-v
+            legacy_version: 0.1.0
 
     steps:
       - name: Check out repository
@@ -19,7 +32,81 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Resolve release
+        id: release
+        env:
+          BEFORE: ${{ github.event.before }}
+          GH_TOKEN: ${{ github.token }}
+          LEGACY_VERSION: ${{ matrix.legacy_version }}
+          PRODUCT: ${{ matrix.product }}
+          TAG_PREFIX: ${{ matrix.tag_prefix }}
+          VERSION_FILE: ${{ matrix.version_file }}
+        run: |
+          VERSION="$(awk -F'"' '/^version = "/ { print $2; exit }' "$VERSION_FILE")"
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid $PRODUCT version in $VERSION_FILE: $VERSION" >&2
+            exit 1
+          fi
+
+          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            echo "Initial branch push; no release will be inferred."
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          PREVIOUS_VERSION="$(git show "$BEFORE:$VERSION_FILE" 2>/dev/null | awk -F'"' '/^version = "/ { print $2; exit }' || true)"
+          if [ -z "$PREVIOUS_VERSION" ]; then
+            echo "Could not resolve the previous $PRODUCT version; no release will be inferred."
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$VERSION" = "$PREVIOUS_VERSION" ]; then
+            echo "$PRODUCT remains at $VERSION; nothing to release."
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          HIGHEST="$(printf '%s\n%s\n' "$PREVIOUS_VERSION" "$VERSION" | sort -V | tail -n 1)"
+          if [ "$HIGHEST" != "$VERSION" ]; then
+            echo "$PRODUCT version $VERSION must be higher than its previous version $PREVIOUS_VERSION" >&2
+            exit 1
+          fi
+
+          TAG="${TAG_PREFIX}${VERSION}"
+          LATEST_TAG="$(git tag --list "${TAG_PREFIX}*" --sort=-v:refname | head -n 1)"
+          if [ "$LATEST_TAG" = "$TAG" ]; then
+            LATEST_TAG="$(git tag --list "${TAG_PREFIX}*" --sort=-v:refname | sed -n '2p')"
+          fi
+          BASE_VERSION="$LEGACY_VERSION"
+          if [ -n "$LATEST_TAG" ]; then
+            BASE_VERSION="${LATEST_TAG#"$TAG_PREFIX"}"
+          fi
+          HIGHEST="$(printf '%s\n%s\n' "$BASE_VERSION" "$VERSION" | sort -V | tail -n 1)"
+          if [ "$VERSION" = "$BASE_VERSION" ] || [ "$HIGHEST" != "$VERSION" ]; then
+            echo "$PRODUCT version $VERSION must be higher than $BASE_VERSION" >&2
+            exit 1
+          fi
+
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            TAG_COMMIT="$(git rev-list -n 1 "$TAG")"
+            if [ "$TAG_COMMIT" != "$GITHUB_SHA" ]; then
+              echo "Tag $TAG points to $TAG_COMMIT instead of $GITHUB_SHA" >&2
+              exit 1
+            fi
+          fi
+
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; nothing to create."
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "should_release=true" >> "$GITHUB_OUTPUT"
+
       - name: Set up JDK 17
+        if: steps.release.outputs.should_release == 'true'
         uses: actions/setup-java@v5.7.0
         with:
           distribution: temurin
@@ -27,57 +114,56 @@ jobs:
           cache: gradle
 
       - name: Set up Gradle
+        if: steps.release.outputs.should_release == 'true'
         uses: gradle/actions/setup-gradle@v6
 
       - name: Make Gradle wrapper executable
+        if: steps.release.outputs.should_release == 'true'
         run: chmod +x gradlew
 
-      - name: Run tests
-        run: make test
+      - name: Verify mockguard
+        if: steps.release.outputs.should_release == 'true' && matrix.product == 'mockguard'
+        run: ./gradlew mockguardCheck
 
-      - name: Resolve release version
-        id: version
+      - name: Verify and package scanner
+        if: steps.release.outputs.should_release == 'true' && matrix.product == 'scanner'
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
         run: |
-          VERSION="$(make version)"
-          if [ -z "$VERSION" ]; then
-            echo "Could not resolve project version" >&2
-            exit 1
-          fi
-          SCANNER_VERSION="$(make scanner-version)"
-          if [ -z "$SCANNER_VERSION" ]; then
-            echo "Could not resolve scanner version" >&2
-            exit 1
-          fi
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "scanner_version=$SCANNER_VERSION" >> "$GITHUB_OUTPUT"
-          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          ./gradlew scannerCheck :mockguard-scanner:fatJar :mockguard-scanner:distZip :mockguard-scanner:distTar :mockguard-scanner:installDist
+          java -jar "mockguard-scanner/build/libs/mockguard-scanner-$VERSION-cli.jar" --help
+          mockguard-scanner/build/install/mockguard-scanner/bin/mockguard-scanner --help
+          mkdir -p mockguard-scanner/build/release
+          cp "mockguard-scanner/build/libs/mockguard-scanner-$VERSION-cli.jar" mockguard-scanner/build/release/
+          cp "mockguard-scanner/build/distributions/mockguard-scanner-$VERSION.zip" mockguard-scanner/build/release/
+          cp "mockguard-scanner/build/distributions/mockguard-scanner-$VERSION.tar" mockguard-scanner/build/release/
+          cd mockguard-scanner/build/release
+          sha256sum \
+            "mockguard-scanner-$VERSION-cli.jar" \
+            "mockguard-scanner-$VERSION.zip" \
+            "mockguard-scanner-$VERSION.tar" \
+            > SHA256SUMS
 
-      - name: Build scanner release artifacts
-        run: ./gradlew :mockguard-scanner:distZip :mockguard-scanner:distTar :mockguard-scanner:fatJar
-
-      - name: Create GitHub release
+      - name: Create mockguard release
+        if: steps.release.outputs.should_release == 'true' && matrix.product == 'mockguard'
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.version.outputs.tag }}
-          VERSION: ${{ steps.version.outputs.version }}
-          SCANNER_VERSION: ${{ steps.version.outputs.scanner_version }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "$TAG" --generate-notes
+
+      - name: Create scanner release
+        if: steps.release.outputs.should_release == 'true' && matrix.product == 'scanner'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+          VERSION: ${{ steps.release.outputs.version }}
         run: |
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release $TAG already exists; nothing to create."
-            exit 0
-          fi
-
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists but the GitHub release is missing; creating it."
-          else
-            git tag "$TAG"
-            git push origin "$TAG"
-          fi
-
           gh release create "$TAG" \
             --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
             --title "$TAG" \
             --generate-notes \
-            "mockguard-scanner/build/libs/mockguard-scanner-$SCANNER_VERSION-cli.jar#mockguard-scanner-$SCANNER_VERSION-cli.jar" \
-            "mockguard-scanner/build/distributions/mockguard-scanner-$SCANNER_VERSION.zip#mockguard-scanner-$SCANNER_VERSION.zip" \
-            "mockguard-scanner/build/distributions/mockguard-scanner-$SCANNER_VERSION.tar#mockguard-scanner-$SCANNER_VERSION.tar"
+            "mockguard-scanner/build/release/mockguard-scanner-$VERSION-cli.jar#mockguard-scanner-$VERSION-cli.jar" \
+            "mockguard-scanner/build/release/mockguard-scanner-$VERSION.zip#mockguard-scanner-$VERSION.zip" \
+            "mockguard-scanner/build/release/mockguard-scanner-$VERSION.tar#mockguard-scanner-$VERSION.tar" \
+            "mockguard-scanner/build/release/SHA256SUMS#SHA256SUMS"

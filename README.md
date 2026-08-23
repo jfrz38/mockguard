@@ -6,6 +6,8 @@
 
 Strict mock verification for JVM unit tests.
 
+The runtime library and static scanner are versioned and released independently. Runtime releases use `mockguard-vX.Y.Z`; scanner releases use `scanner-vX.Y.Z`. See [RELEASING.md](RELEASING.md) for the release and Maven publication process.
+
 `mockguard` is a Kotlin/JVM library for JUnit 5 + Mockito that makes mock verification explicit. When enabled, every tracked mock in a test must be verified with a Mockito verification such as `verify(...)`, `verifyNoInteractions(...)`, or `verifyNoMoreInteractions(...)`, or be opted out explicitly.
 
 ## Why Use It?
@@ -83,7 +85,7 @@ class OrderServiceTest {
     <dependency>
         <groupId>io.github.jfrz38</groupId>
         <artifactId>mockguard</artifactId>
-        <version>0.1.0</version> <!-- Replace with the published version -->
+        <version>0.1.1</version> <!-- Replace with the latest published version -->
         <scope>test</scope>
     </dependency>
 
@@ -197,7 +199,7 @@ This gives you a focused adoption path: you can start by protecting the mocks th
 
 ```kotlin
 dependencies {
-    testImplementation("io.github.jfrz38:mockguard:0.1.0") // Replace with the published version
+    testImplementation("io.github.jfrz38:mockguard:0.1.1") // Replace with the latest published version
     testImplementation("org.mockito:mockito-core:5.11.0")
     testImplementation("org.mockito:mockito-junit-jupiter:5.11.0")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.2")
@@ -217,7 +219,7 @@ It complements the runtime JUnit extension:
 
 ### Install / Download
 
-Download the `mockguard-scanner` distribution archive from the GitHub release and unpack it. The archive contains platform scripts:
+Download the ZIP or TAR archive from a `scanner-vX.Y.Z` GitHub release and unpack it. Scanner releases also provide a standalone CLI JAR and `SHA256SUMS`. The archives contain platform scripts:
 
 ```text
 bin/mockguard-scanner
@@ -246,7 +248,7 @@ mockguard-scanner \
 If you prefer the standalone JAR, use `java -jar`:
 
 ```bash
-java -jar mockguard-scanner-0.1.0-cli.jar \
+java -jar mockguard-scanner-X.Y.Z-cli.jar \
   --class-dir=build/classes/kotlin/test \
   --format=console
 ```
@@ -274,7 +276,7 @@ Build the standalone CLI JAR from this repository:
 Run the generated JAR with:
 
 ```bash
-java -jar mockguard-scanner/build/libs/mockguard-scanner-0.1.0-cli.jar \
+java -jar mockguard-scanner/build/libs/mockguard-scanner-X.Y.Z-cli.jar \
   --class-dir=build/classes/kotlin/test \
   --format=console
 ```
@@ -376,7 +378,7 @@ tasks.register<JavaExec>("mockguardScan") {
     val javaTestClasses = layout.buildDirectory.dir("classes/java/test")
     val kotlinTestClasses = layout.buildDirectory.dir("classes/kotlin/test")
     classpath = configurations.detachedConfiguration(
-        dependencies.create("io.github.jfrz38:mockguard-scanner:0.1.0")
+        dependencies.create("io.github.jfrz38:mockguard-scanner:<scanner-version>")
     )
     mainClass = "com.mockguard.scanner.MainKt"
     args(
