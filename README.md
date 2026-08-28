@@ -1,6 +1,7 @@
 # Mock Guard
 
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.jfrz38/mockguard)](https://central.sonatype.com/artifact/io.github.jfrz38/mockguard)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.jfrz38/mockguard-scanner)](https://central.sonatype.com/artifact/io.github.jfrz38/mockguard-scanner)
 [![Build](https://img.shields.io/github/actions/workflow/status/jfrz38/mockguard/pr-build.yml?branch=main)](https://github.com/jfrz38/mockguard/actions/workflows/pr-build.yml)
 [![License](https://img.shields.io/github/license/jfrz38/mockguard)](https://github.com/jfrz38/mockguard/blob/main/LICENSE)
 
