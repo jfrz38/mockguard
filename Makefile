@@ -55,16 +55,32 @@ scan: scanner-jar ## build scanner JAR and scan mockguard's compiled test classe
 	java -jar $(SCANNER_JAR) --class-dir=mockguard/build/classes/kotlin/test --format=console
 
 # Publishing
-.PHONY: publish-local publish-staging publish-dryrun publish-maven
+.PHONY: publish-local publish-mockguard-local publish-scanner-local
+.PHONY: publish-mockguard-staging publish-mockguard-dryrun publish-mockguard
+.PHONY: publish-scanner-staging publish-scanner-dryrun publish-scanner
 
-publish-local: ## publish to local ~/.m2 Maven repository
-	$(GRADLE) publishToMavenLocal
+publish-local: publish-mockguard-local publish-scanner-local ## publish both products to local ~/.m2
 
-publish-staging: ## publish to build/staging-deploy for local inspection
-	$(GRADLE) publishAllPublicationsToStagingRepository
+publish-mockguard-local: ## publish only mockguard to local ~/.m2
+	$(GRADLE) :mockguard:publishToMavenLocal
 
-publish-dryrun: ## validate JReleaser config without publishing
-	$(GRADLE) --stacktrace jreleaserConfig --deploy --dryrun
+publish-scanner-local: ## publish only mockguard-scanner to local ~/.m2
+	$(GRADLE) :mockguard-scanner:publishToMavenLocal
 
-publish-maven: ## publish to Maven Central
-	$(GRADLE) --stacktrace --info publish jreleaserDeploy
+publish-mockguard-staging: ## stage only mockguard for local inspection
+	$(GRADLE) :mockguard:publishAllPublicationsToStagingRepository
+
+publish-mockguard-dryrun: ## validate mockguard JReleaser deployment
+	$(GRADLE) --stacktrace :mockguard:jreleaserConfig --deploy --dryrun
+
+publish-mockguard: ## publish only mockguard to Maven Central
+	$(GRADLE) --stacktrace --info :mockguard:publishAllPublicationsToStagingRepository :mockguard:jreleaserDeploy
+
+publish-scanner-staging: ## stage only mockguard-scanner for local inspection
+	$(GRADLE) :mockguard-scanner:publishAllPublicationsToStagingRepository
+
+publish-scanner-dryrun: ## validate mockguard-scanner JReleaser deployment
+	$(GRADLE) --stacktrace :mockguard-scanner:jreleaserConfig --deploy --dryrun
+
+publish-scanner: ## publish only mockguard-scanner to Maven Central
+	$(GRADLE) --stacktrace --info :mockguard-scanner:publishAllPublicationsToStagingRepository :mockguard-scanner:jreleaserDeploy
