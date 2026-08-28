@@ -1,15 +1,16 @@
 plugins {
+    kotlin("jvm")
     `java-library`
+    application
     `maven-publish`
     id("org.jreleaser")
-    kotlin("jvm")
 }
 
 import org.jreleaser.model.Active
 import org.jreleaser.model.Http
 
 group = "io.github.jfrz38"
-version = "0.2.0"
+version = "0.1.0"
 
 val publicationNamespace = group.toString()
 
@@ -17,20 +18,21 @@ repositories {
     mavenCentral()
 }
 
-java {
-    withSourcesJar()
-}
+val byteBuddyVersion = "1.18.11"
 
 dependencies {
-    api("org.junit.jupiter:junit-jupiter-api:6.1.3")
-    implementation("org.mockito:mockito-core:5.23.0")
-    implementation("net.bytebuddy:byte-buddy:1.18.11")
-    implementation("net.bytebuddy:byte-buddy-agent:1.18.11")
+    implementation("net.bytebuddy:byte-buddy:$byteBuddyVersion")
 
-    testImplementation("org.junit.jupiter:junit-jupiter-engine:6.1.3")
-    testImplementation("org.junit.jupiter:junit-jupiter-params:6.1.3")
-    testImplementation("org.mockito:mockito-junit-jupiter:5.23.0")
-    testImplementation("org.junit.platform:junit-platform-launcher:6.1.3")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
+    testImplementation("org.mockito:mockito-core:5.23.0")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:6.3.0")
+    testImplementation("net.bytebuddy:byte-buddy-agent:$byteBuddyVersion")
+    testImplementation("org.apache.groovy:groovy:5.0.8")
+    testImplementation(kotlin("test"))
+}
+
+java {
+    withSourcesJar()
 }
 
 val emptyJavadocJar by tasks.registering(Jar::class) {
@@ -40,17 +42,70 @@ val emptyJavadocJar by tasks.registering(Jar::class) {
     }
 }
 
+application {
+    mainClass = "com.mockguard.scanner.MainKt"
+    applicationName = "mockguard-scanner"
+}
+
 tasks.test {
     useJUnitPlatform()
-    exclude("**/*$*.class")
-    filter {
-        excludeTestsMatching("com.mockguard.integration.fixtures.*")
-    }
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
+}
+
+val runtimeClasspath = configurations.runtimeClasspath
+
+val fatJar = tasks.register<Jar>("fatJar") {
+    group = "distribution"
+    description = "Builds the executable scanner CLI JAR."
+    archiveBaseName.set("mockguard-scanner")
+    archiveClassifier.set("cli")
+    dependsOn(runtimeClasspath)
+    from(sourceSets.main.map { it.output })
+    from({
+        runtimeClasspath.get().map { dependency ->
+            if (dependency.isDirectory) dependency else zipTree(dependency)
+        }
+    })
+    manifest {
+        attributes("Main-Class" to application.mainClass.get())
+    }
+    exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    isPreserveFileTimestamps = false
+    isReproducibleFileOrder = true
+}
+
+val scannerCliElements by configurations.creating {
+    isCanBeConsumed = true
+    isCanBeResolved = false
+
+    attributes {
+        attribute(
+            org.gradle.api.attributes.Category.CATEGORY_ATTRIBUTE,
+            objects.named(org.gradle.api.attributes.Category.LIBRARY),
+        )
+        attribute(
+            org.gradle.api.attributes.Usage.USAGE_ATTRIBUTE,
+            objects.named(org.gradle.api.attributes.Usage.JAVA_RUNTIME),
+        )
+        attribute(
+            org.gradle.api.attributes.Bundling.BUNDLING_ATTRIBUTE,
+            objects.named(org.gradle.api.attributes.Bundling.SHADOWED),
+        )
+        attribute(
+            org.gradle.api.attributes.LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE,
+            objects.named(org.gradle.api.attributes.LibraryElements.JAR),
+        )
+    }
+
+    outgoing.artifact(fatJar.flatMap { it.archiveFile }) {
+        type = "jar"
+        builtBy(fatJar)
     }
 }
 
@@ -61,8 +116,8 @@ publishing {
             artifact(emptyJavadocJar)
 
             pom {
-                name.set("mockguard")
-                description.set("Strict mock verification for JUnit 5 and Mockito.")
+                name.set("mockguard-scanner")
+                description.set("Static bytecode scanner for unverified Mockito mocks.")
                 url.set("https://github.com/jfrz38/mockguard")
                 licenses {
                     license {
