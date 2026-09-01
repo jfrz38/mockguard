@@ -27,7 +27,7 @@ dependencies {
     testImplementation("org.mockito:mockito-core:5.23.0")
     testImplementation("org.mockito.kotlin:mockito-kotlin:6.3.0")
     testImplementation("net.bytebuddy:byte-buddy-agent:$byteBuddyVersion")
-    testImplementation("org.apache.groovy:groovy:5.0.8")
+    testImplementation("org.apache.groovy:groovy:5.1.1")
     testImplementation(kotlin("test"))
 }
 
