@@ -3,7 +3,7 @@ package com.mockguard.scanner.output
 import com.mockguard.scanner.model.ScanResult
 import com.mockguard.scanner.model.Violation
 
-object ConsoleReporter {
+internal object ConsoleReporter {
     fun report(result: ScanResult, verbose: Boolean = false): String {
         if (result.violations.isEmpty()) {
             return buildString {

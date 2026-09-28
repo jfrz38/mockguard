@@ -30,10 +30,10 @@ scanner-version: ## print mockguard-scanner version
 .PHONY: test test-integration test-runtime-integration test-scanner-integration test-consumer
 
 test: ## run all tests
-	$(GRADLE) test
+	$(GRADLE) allCheck
 
 test-integration: ## run all integration tests across all modules
-	$(GRADLE) test --tests "*IntegrationTest*" --tests "*ConsumerIntegrationTest*"
+	$(GRADLE) :mockguard:test :mockguard-scanner:test :mockguard-consumer-tests:runtimeConsumerTest :mockguard-consumer-tests:scannerConsumerTest :mockguard-consumer-tests:runtimePublicationTest :mockguard-consumer-tests:scannerPublicationTest --tests "*IntegrationTest*" --tests "*ConsumerIntegrationTest*" --tests "*PublicationJavaTest*"
 
 test-runtime-integration: ## run mockguard runtime integration tests only
 	$(GRADLE) :mockguard:test --tests "*IntegrationTest*"
@@ -42,7 +42,7 @@ test-scanner-integration: ## run mockguard-scanner integration tests only
 	$(GRADLE) :mockguard-scanner:test --tests "*IntegrationTest*"
 
 test-consumer: ## run consumer tests only
-	$(GRADLE) :mockguard-consumer-tests:test
+	$(GRADLE) consumerCheck
 
 # Scanner
 .PHONY: scanner-jar scan

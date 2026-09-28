@@ -1,7 +1,7 @@
 plugins {
     base
-    kotlin("jvm") version "2.4.10" apply false
-    id("org.jreleaser") version "1.25.0" apply false
+    alias(libs.plugins.kotlin.jvm) apply false
+    alias(libs.plugins.jreleaser) apply false
 }
 
 val mockguardCheck by tasks.registering {
@@ -10,6 +10,7 @@ val mockguardCheck by tasks.registering {
     dependsOn(
         ":mockguard:check",
         ":mockguard-consumer-tests:runtimeConsumerTest",
+        ":mockguard-consumer-tests:runtimePublicationTest",
     )
 }
 
@@ -19,6 +20,7 @@ val scannerCheck by tasks.registering {
     dependsOn(
         ":mockguard-scanner:check",
         ":mockguard-consumer-tests:scannerConsumerTest",
+        ":mockguard-consumer-tests:scannerPublicationTest",
     )
 }
 
@@ -28,6 +30,8 @@ val consumerCheck by tasks.registering {
     dependsOn(
         ":mockguard-consumer-tests:runtimeConsumerTest",
         ":mockguard-consumer-tests:scannerConsumerTest",
+        ":mockguard-consumer-tests:runtimePublicationTest",
+        ":mockguard-consumer-tests:scannerPublicationTest",
     )
 }
 

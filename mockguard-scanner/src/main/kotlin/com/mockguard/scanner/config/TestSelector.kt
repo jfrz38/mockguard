@@ -1,6 +1,6 @@
 package com.mockguard.scanner.config
 
-data class TestSelector(
+internal data class TestSelector(
     val className: String,
     val methodName: String,
     val methodDescriptor: String? = null,
