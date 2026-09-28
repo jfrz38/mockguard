@@ -18,16 +18,17 @@ repositories {
     mavenCentral()
 }
 
-val byteBuddyVersion = "1.18.11"
-
 dependencies {
-    implementation("net.bytebuddy:byte-buddy:$byteBuddyVersion")
+    implementation(libs.byte.buddy)
+    implementation(libs.gson)
 
-    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
-    testImplementation("org.mockito:mockito-core:5.23.0")
-    testImplementation("org.mockito.kotlin:mockito-kotlin:6.3.0")
-    testImplementation("net.bytebuddy:byte-buddy-agent:$byteBuddyVersion")
-    testImplementation("org.apache.groovy:groovy:5.1.1")
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter.api)
+    testRuntimeOnly(libs.junit.jupiter.engine)
+    testImplementation(libs.mockito.core)
+    testImplementation(libs.mockito.kotlin)
+    testImplementation(libs.byte.buddy.agent)
+    testImplementation(libs.groovy)
     testImplementation(kotlin("test"))
 }
 

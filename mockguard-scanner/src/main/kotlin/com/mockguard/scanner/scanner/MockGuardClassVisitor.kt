@@ -17,7 +17,7 @@ private const val GUARDED_MOCK_DESC = "Lcom/mockguard/GuardedMock;"
 
 private val EMPTY_ANNOTATION_VISITOR = object : AnnotationVisitor(Opcodes.ASM9) {}
 
-class MockGuardClassVisitor(
+internal class MockGuardClassVisitor(
     private val selectedTests: List<TestSelector> = emptyList(),
 ) : ClassVisitor(Opcodes.ASM9) {
 

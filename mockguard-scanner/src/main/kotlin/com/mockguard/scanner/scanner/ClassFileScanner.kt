@@ -11,7 +11,7 @@ import java.nio.file.Path
 import java.nio.file.SimpleFileVisitor
 import java.nio.file.attribute.BasicFileAttributes
 
-class ClassFileScanner(
+internal class ClassFileScanner(
     private val classDirs: List<Path>,
     private val includes: List<String> = emptyList(),
     private val excludes: List<String> = emptyList(),

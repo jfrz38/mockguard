@@ -1,6 +1,6 @@
 package com.mockguard.scanner.config
 
-data class ScannerConfig(
+internal data class ScannerConfig(
     val classDirs: List<String>,
     val mode: OutputMode = OutputMode.FAIL,
     val format: OutputFormat = OutputFormat.CONSOLE,
