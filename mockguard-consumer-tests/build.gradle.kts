@@ -51,10 +51,10 @@ testing {
                 implementation(project(":mockguard"))
                 implementation("org.junit.jupiter:junit-jupiter-params:6.1.3")
                 implementation("org.junit.platform:junit-platform-launcher:6.1.3")
-                implementation("org.mockito:mockito-core:5.23.0")
-                implementation("org.mockito:mockito-junit-jupiter:5.23.0")
-                implementation("org.mockito.kotlin:mockito-kotlin:6.3.0")
-                implementation("org.jetbrains.kotlin:kotlin-test-junit5:2.4.10")
+                implementation("org.mockito:mockito-core:5.24.0")
+                implementation("org.mockito:mockito-junit-jupiter:5.24.0")
+                implementation("org.mockito.kotlin:mockito-kotlin:6.4.0")
+                implementation("org.jetbrains.kotlin:kotlin-test-junit5:2.4.20")
             }
 
             targets.all {
@@ -71,8 +71,8 @@ testing {
 
             dependencies {
                 implementation(project(":mockguard"))
-                implementation("org.mockito:mockito-core:5.23.0")
-                implementation("org.jetbrains.kotlin:kotlin-test-junit5:2.4.10")
+                implementation("org.mockito:mockito-core:5.24.0")
+                implementation("org.jetbrains.kotlin:kotlin-test-junit5:2.4.20")
             }
 
             targets.all {

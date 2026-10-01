@@ -23,13 +23,13 @@ java {
 
 dependencies {
     api("org.junit.jupiter:junit-jupiter-api:6.1.3")
-    implementation("org.mockito:mockito-core:5.23.0")
+    implementation("org.mockito:mockito-core:5.24.0")
     implementation("net.bytebuddy:byte-buddy:1.18.11")
     implementation("net.bytebuddy:byte-buddy-agent:1.18.11")
 
     testImplementation("org.junit.jupiter:junit-jupiter-engine:6.1.3")
     testImplementation("org.junit.jupiter:junit-jupiter-params:6.1.3")
-    testImplementation("org.mockito:mockito-junit-jupiter:5.23.0")
+    testImplementation("org.mockito:mockito-junit-jupiter:5.24.0")
     testImplementation("org.junit.platform:junit-platform-launcher:6.1.3")
 }
 
