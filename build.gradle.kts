@@ -1,7 +1,7 @@
 plugins {
     base
-    kotlin("jvm") version "2.4.10" apply false
-    id("org.jreleaser") version "1.25.0" apply false
+    kotlin("jvm") version "2.4.20" apply false
+    id("org.jreleaser") version "1.26.0" apply false
 }
 
 val mockguardCheck by tasks.registering {
