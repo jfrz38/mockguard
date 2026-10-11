@@ -22,16 +22,51 @@ This catches incomplete tests and can expose dependencies that do not belong in 
 
 ## Runtime Setup
 
-MockGuard is published as `io.github.jfrz38:mockguard`. Replace `<mockguard-version>` with the version shown by the Maven Central badge.
+MockGuard supports Java and Kotlin tests and is published as `io.github.jfrz38:mockguard`. Replace the version placeholders below with the versions shown by the Maven Central badge and the [tested compatibility matrix](docs/compatibility.md).
+
+### Gradle Kotlin DSL
 
 ```kotlin
 dependencies {
     testImplementation("io.github.jfrz38:mockguard:<mockguard-version>")
-    testImplementation("org.mockito:mockito-core:5.23.0")
-    testImplementation("org.mockito:mockito-junit-jupiter:5.23.0")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:6.1.3")
+    testImplementation("org.mockito:mockito-core:<mockito-version>")
+    testImplementation("org.mockito:mockito-junit-jupiter:<mockito-version>")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:<junit-version>")
 }
 ```
+
+### Maven
+
+```xml
+<dependencies>
+    <dependency>
+        <groupId>io.github.jfrz38</groupId>
+        <artifactId>mockguard</artifactId>
+        <version>&lt;mockguard-version&gt;</version>
+        <scope>test</scope>
+    </dependency>
+    <dependency>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-core</artifactId>
+        <version>&lt;mockito-version&gt;</version>
+        <scope>test</scope>
+    </dependency>
+    <dependency>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-junit-jupiter</artifactId>
+        <version>&lt;mockito-version&gt;</version>
+        <scope>test</scope>
+    </dependency>
+    <dependency>
+        <groupId>org.junit.jupiter</groupId>
+        <artifactId>junit-jupiter-engine</artifactId>
+        <version>&lt;junit-version&gt;</version>
+        <scope>test</scope>
+    </dependency>
+</dependencies>
+```
+
+### Kotlin
 
 ```kotlin
 import com.mockguard.MockGuard
@@ -56,6 +91,32 @@ class OrderServiceTest {
 }
 ```
 
+### Java
+
+```java
+import com.mockguard.MockGuard;
+import com.mockguard.StrictMode;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
+
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+
+@MockGuard(mode = StrictMode.FAIL)
+class OrderServiceTest {
+    @Mock PaymentGateway paymentGateway;
+    @Mock Logger logger;
+
+    @Test
+    void processesOrders() {
+        paymentGateway.charge(100);
+
+        verify(paymentGateway).charge(100);
+        verifyNoInteractions(logger);
+    }
+}
+```
+
 `@MockGuard` registers the extension and initializes `@Mock` and `@Spy` fields when Mockito has not already initialized them.
 
 ## Verification Rules
@@ -72,7 +133,9 @@ Mockito-based wrappers such as `mockito-kotlin` work when they delegate to Mocki
 
 ### Ignore A Mock
 
-Use an annotation:
+Annotate a field to exclude it from validation.
+
+Kotlin:
 
 ```kotlin
 @MockGuardIgnore
@@ -80,10 +143,22 @@ Use an annotation:
 lateinit var logger: Logger
 ```
 
-Or ignore it programmatically:
+Java:
+
+```java
+@MockGuardIgnore
+@Mock
+Logger logger;
+```
+
+Mocks can also be ignored programmatically from a test:
 
 ```kotlin
 MockGuards.ignore(logger)
+```
+
+```java
+MockGuards.INSTANCE.ignore(logger);
 ```
 
 ### Guard Selected Mocks
@@ -99,6 +174,20 @@ class CheckoutServiceTest {
 
     @Mock
     lateinit var auditLogger: AuditLogger
+}
+```
+
+The same focused adoption is available from Java:
+
+```java
+@MockGuard(mode = StrictMode.FAIL)
+class CheckoutServiceTest {
+    @GuardedMock
+    @Mock
+    PaymentGateway paymentGateway;
+
+    @Mock
+    AuditLogger auditLogger;
 }
 ```
 

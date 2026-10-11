@@ -7,13 +7,13 @@ MockGuard documents versions exercised by this repository's build and consumer s
 | Component | Tested version |
 |---|---:|
 | Java toolchain and bytecode target | 17 |
-| Kotlin | 2.4.10 |
+| Kotlin | 2.4.20 |
 | JUnit | 6.1.3 |
-| Mockito | 5.23.0 |
-| mockito-kotlin | 6.3.0 |
+| Mockito | 5.24.0 |
+| mockito-kotlin | 6.4.0 |
 | Byte Buddy | 1.18.11 |
-| Groovy scanner fixtures | 5.1.1 |
-| Gradle wrapper | 9.7.1 |
+| Groovy scanner fixtures | 6.0.0 |
+| Gradle wrapper | 9.8.0 |
 
 The runtime consumer suites compile and execute Java and Kotlin test fixtures. Publication smoke tests repeat that compilation against the staged Maven POM and JAR rather than a Gradle project dependency.
 
