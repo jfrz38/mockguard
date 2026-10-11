@@ -65,6 +65,27 @@ class JsonReporterTest {
     }
 
     @Test
+    fun `preserves unicode string values`() {
+        val result = ScanResult(
+            totalClasses = 1,
+            violations = listOf(
+                Violation(
+                    className = "com.example.PruebaUnicode",
+                    sourceFile = "PruebaUnicode.kt",
+                    lineNumber = 1,
+                    fieldName = "servicio-日本語",
+                    fieldType = "Servicio",
+                    hadInvocations = false,
+                ),
+            ),
+        )
+
+        val report = JsonReporter.report(result)
+
+        assertContains(report, "servicio-日本語")
+    }
+
+    @Test
     fun `includes skipped classes`() {
         val result = ScanResult(
             totalClasses = 2,

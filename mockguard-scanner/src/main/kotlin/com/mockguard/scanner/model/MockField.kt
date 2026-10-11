@@ -1,6 +1,6 @@
 package com.mockguard.scanner.model
 
-data class MockField(
+internal data class MockField(
     val name: String,
     val descriptor: String,
     val isSpy: Boolean = false,

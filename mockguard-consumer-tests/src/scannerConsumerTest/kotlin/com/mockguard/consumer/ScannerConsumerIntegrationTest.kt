@@ -1,6 +1,5 @@
 package com.mockguard.consumer
 
-import com.mockguard.consumer.fixtures.ScannerMethodSelectionCase
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
@@ -50,12 +49,9 @@ class ScannerConsumerIntegrationTest {
     private fun runScanner(vararg arguments: String): ScannerProcessResult {
         val stdoutFile = tempDir.resolve("scanner-stdout-${System.nanoTime()}.txt")
         val stderrFile = tempDir.resolve("scanner-stderr-${System.nanoTime()}.txt")
-        val command = listOf(
-            javaExecutable().absolutePathString(),
-            "-jar",
-            scannerJar().absolutePathString(),
-            "--class-dir=${consumerClassDirectory().absolutePathString()}",
-        ) + arguments
+        val command = scannerCommand() +
+            "--class-dir=${consumerClassDirectory().absolutePathString()}" +
+            arguments
 
         val process = ProcessBuilder(command)
             .redirectOutput(stdoutFile.toFile())
@@ -75,15 +71,28 @@ class ScannerConsumerIntegrationTest {
         )
     }
 
-    private fun scannerJar(): Path = Path.of(
-        requireNotNull(System.getProperty(SCANNER_JAR_PROPERTY)) {
-            "Missing system property $SCANNER_JAR_PROPERTY"
-        },
-    )
+    private fun scannerCommand(): List<String> {
+        val java = javaExecutable().absolutePathString()
+        val jar = System.getProperty(SCANNER_JAR_PROPERTY)
+        if (jar != null) {
+            return listOf(java, "-jar", Path.of(jar).absolutePathString())
+        }
+
+        val classpath = requireNotNull(System.getProperty(SCANNER_CLASSPATH_PROPERTY)) {
+            "Missing system property $SCANNER_JAR_PROPERTY or $SCANNER_CLASSPATH_PROPERTY"
+        }
+        return listOf(java, "-cp", classpath, SCANNER_MAIN_CLASS)
+    }
 
     private fun consumerClassDirectory(): Path = Path.of(
-        ScannerMethodSelectionCase::class.java.protectionDomain.codeSource.location.toURI(),
-    )
+        requireNotNull(
+            javaClass.classLoader.getResource(FIXTURE_CLASS.replace('.', '/') + ".class"),
+        ) { "Compiled fixture not found: $FIXTURE_CLASS" }.toURI(),
+    ).let { classFile ->
+        generateSequence(classFile) { it.parent }
+            .drop(FIXTURE_CLASS.count { it == '.' } + 1)
+            .first()
+    }
 
     private fun javaExecutable(): Path {
         val executable = if (System.getProperty("os.name").startsWith("Windows", ignoreCase = true)) {
@@ -114,5 +123,7 @@ class ScannerConsumerIntegrationTest {
         const val FIXTURE_CLASS = "com.mockguard.consumer.fixtures.ScannerMethodSelectionCase"
         const val PROCESS_TIMEOUT_SECONDS = 30L
         const val SCANNER_JAR_PROPERTY = "mockguard.scanner.jar"
+        const val SCANNER_CLASSPATH_PROPERTY = "mockguard.scanner.classpath"
+        const val SCANNER_MAIN_CLASS = "com.mockguard.scanner.MainKt"
     }
 }

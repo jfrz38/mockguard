@@ -1,6 +1,6 @@
 package com.mockguard.scanner.model
 
-data class Violation(
+internal data class Violation(
     val className: String,
     val sourceFile: String?,
     val lineNumber: Int,

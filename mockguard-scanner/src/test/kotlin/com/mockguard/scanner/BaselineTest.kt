@@ -9,6 +9,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 class BaselineTest {
 
@@ -81,6 +82,73 @@ class BaselineTest {
 
         assertEquals(0, filtered.violations.size)
         assertEquals(1, filtered.baselineSummary?.knownViolations)
+    }
+
+    @Test
+    fun `round trips unicode strings`() {
+        val baselineFile = tempDir.resolve("mockguard-baseline.json")
+        val unicodeViolation = violation(
+            className = "com.example.PruebaUnicode",
+            fieldName = "servicio-日本語",
+        )
+
+        Baseline.write(baselineFile, listOf(unicodeViolation))
+        val filtered = Baseline.apply(
+            ScanResult(totalClasses = 1, violations = listOf(unicodeViolation)),
+            baselineFile,
+        )
+
+        assertContains(Files.readString(baselineFile), "servicio-日本語")
+        assertEquals(1, filtered.baselineSummary?.knownViolations)
+    }
+
+    @Test
+    fun `reads reordered fields and ignores unknown properties`() {
+        val baselineFile = tempDir.resolve("mockguard-baseline.json")
+        Files.writeString(
+            baselineFile,
+            """
+                {
+                  "extra": true,
+                  "violations": [{
+                    "fieldType": "com.example.Dependency",
+                    "fieldName": "service",
+                    "unknown": "ignored",
+                    "className": "com.example.LegacyTest"
+                  }],
+                  "version": 1
+                }
+            """.trimIndent(),
+        )
+
+        val keys = Baseline.read(baselineFile)
+
+        assertEquals(1, keys.size)
+        assertEquals("com.example.LegacyTest", keys.single().className)
+    }
+
+    @Test
+    fun `rejects malformed JSON`() {
+        val baselineFile = tempDir.resolve("mockguard-baseline.json")
+        Files.writeString(baselineFile, "{not-json")
+
+        val exception = assertFailsWith<IllegalArgumentException> {
+            Baseline.read(baselineFile)
+        }
+
+        assertContains(exception.message.orEmpty(), "Malformed baseline file")
+    }
+
+    @Test
+    fun `rejects unsupported baseline versions`() {
+        val baselineFile = tempDir.resolve("mockguard-baseline.json")
+        Files.writeString(baselineFile, """{"version": 3, "violations": []}""")
+
+        val exception = assertFailsWith<IllegalArgumentException> {
+            Baseline.read(baselineFile)
+        }
+
+        assertContains(exception.message.orEmpty(), "Unsupported baseline version 3")
     }
 
     @Test
